@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Koola Chats</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Main App Container (Constrained viewport) -->
+    <div id="app-container">
+        <!-- Splash Screen -->
+    <div id="splash-screen" class="full-overlay">
+        <div class="splash-content">
+            <i class="ri-message-3-fill splash-logo pulse"></i>
+            <h1 class="splash-title">Koola</h1>
+        </div>
+        <div class="splash-footer">
+            <div class="from-text">from</div>
+            <div class="meta-brand">Antigravity</div>
+        </div>
+    </div>
+
+    <!-- Onboarding Flow -->
+    <div id="onboarding-container" class="full-overlay hidden">
+        <!-- Content gets injected here -->
+    </div>
+
+        <!-- Dynamic Header -->
+        <header id="main-header">
+            <div class="header-left">
+                <i class="ri-message-3-fill app-logo" id="header-icon"></i>
+                <h1 id="header-title">Chats</h1>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn search-btn hidden" id="header-search-btn"><i class="ri-search-line"></i></button>
+                <div style="position: relative;">
+                    <button class="icon-btn more-btn"><i class="ri-more-2-fill"></i></button>
+                    <div id="header-dropdown" class="header-dropdown hidden">
+                        <div class="dropdown-item">New group</div>
+                        <div class="dropdown-item">New broadcast</div>
+                        <div class="dropdown-item">Linked devices</div>
+                        <div class="dropdown-item">Starred messages</div>
+                        <div class="dropdown-item">Settings</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Dynamic content injected here via JS -->
+        </main>
+
+        <!-- Floating Action Button (FAB) -->
+        <button id="fab-btn" class="fab">
+            <i class="ri-message-2-fill"></i>
+        </button>
+
+        <!-- Bottom Navigation -->
+        <nav id="bottom-nav">
+            <button class="nav-item active" data-tab="chats">
+                <div class="nav-icon"><i class="ri-chat-3-fill"></i></div>
+                <span>Chats</span>
+            </button>
+            <button class="nav-item" data-tab="status">
+                <div class="nav-icon"><i class="ri-donut-chart-line"></i></div>
+                <span>Status</span>
+            </button>
+            <button class="nav-item" data-tab="calls">
+                <div class="nav-icon"><i class="ri-phone-line"></i></div>
+                <span>Calls</span>
+            </button>
+            <button class="nav-item" data-tab="settings">
+                <div class="nav-icon"><i class="ri-settings-3-line"></i></div>
+                <span>Settings</span>
+            </button>
+        </nav>
+        
+        <!-- Messaging Screen Overlay -->
+        <div id="messaging-container" class="messaging-view"></div>
+        
+        <!-- Generic Subpage Overlay for Settings, Status Viewer, etc. -->
+        <div id="subpage-container" class="messaging-view" style="z-index: 2000;"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/firebase-init.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/views/chats.js"></script>
+    <script src="js/views/calls.js"></script>
+    <script src="js/views/status.js"></script>
+    <script src="js/views/settings.js"></script>
+    <script src="js/views/messaging.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
