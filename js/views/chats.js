@@ -135,16 +135,26 @@ window.initChats = function() {
             
             try {
                 const chatsRef = collection(window.koolaDb, "chats");
-                const q = query(chatsRef, where("participants", "array-contains", currentUser), orderBy("timestamp", "desc"));
+                const q = query(chatsRef, where("participants", "array-contains", currentUser));
                 
                 onSnapshot(q, (snapshot) => {
                     let html = '';
                     if (snapshot.empty) {
-                        html = `<div class="empty-state"><i class="ri-chat-3-line" style="font-size: 48px; color: var(--text-secondary);"></i><p>No active chats found on Firebase.</p></div>`;
+                        html = `<div class="empty-state"><i class="ri-chat-3-line" style="font-size: 48px; color: var(--text-secondary);"></i><p style="margin-top: 10px;">No chats yet.</p><p style="font-size: 13px; margin-top: 10px; opacity: 0.7;">Tap the message icon at the bottom right to start a chat.</p></div>`;
                     } else {
-                        snapshot.forEach((docSnap, index) => {
-                            const chat = docSnap.data();
-                            chat.id = docSnap.id;
+                        const docsArr = [];
+                        snapshot.forEach(docSnap => {
+                            docsArr.push({ id: docSnap.id, ...docSnap.data() });
+                        });
+                        
+                        // Sort locally to completely bypass Google Firebase Compound Index requirements
+                        docsArr.sort((a, b) => {
+                            const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+                            const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+                            return timeB - timeA;
+                        });
+                        
+                        docsArr.forEach((chat, index) => {
                             
                             let avatarHtml = chat.avatar ? `<img src="${chat.avatar}" class="avatar" alt="Avatar">` : `<div class="avatar-text">${chat.name ? chat.name.charAt(0) : '#'}</div>`;
                             let badgeHtml = chat.unread > 0 ? `<div class="unread-badge">${chat.unread}</div>` : '';
