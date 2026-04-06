@@ -3,97 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Koola Chats</title>
+    <title>Koola Chats Desktop</title>
     <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
 </head>
-<body>
-    <!-- Main App Container (Constrained viewport) -->
-    <div id="app-container">
-        <!-- Splash Screen -->
+<body class="dark-theme">
+    
+    <!-- Splash Screen -->
     <div id="splash-screen" class="full-overlay">
         <div class="splash-content">
             <i class="ri-message-3-fill splash-logo pulse"></i>
             <h1 class="splash-title">Koola</h1>
         </div>
-        <div class="splash-footer">
-            <div class="from-text">from</div>
-            <div class="meta-brand">Antigravity</div>
+    </div>
+
+    <!-- Auth / Onboarding Overlay -->
+    <div id="auth-overlay" class="full-overlay hidden">
+        <div class="auth-modal">
+            <h2>Welcome to Koola</h2>
+            <p>Sign in with your email to start messaging.</p>
+            <div class="auth-form" id="login-form">
+                <input type="email" id="auth-email" placeholder="Email Address">
+                <input type="password" id="auth-password" placeholder="Password">
+                <button id="auth-submit-btn" class="primary-btn">Sign In / Register</button>
+            </div>
+            <div id="auth-loader" class="hidden">
+                <i class="ri-loader-4-line pulse" style="font-size: 32px;"></i>
+                <p>Authenticating...</p>
+            </div>
         </div>
     </div>
 
-    <!-- Onboarding Flow -->
-    <div id="onboarding-container" class="full-overlay hidden">
-        <!-- Content gets injected here -->
-    </div>
-
-        <!-- Dynamic Header -->
-        <header id="main-header">
-            <div class="header-left">
-                <i class="ri-message-3-fill app-logo" id="header-icon"></i>
-                <h1 id="header-title">Chats</h1>
+    <!-- Main Desktop Layout -->
+    <div id="app-container" class="whatsapp-layout hidden">
+        
+        <!-- Column 1: Far Left Slim Sidebar -->
+        <nav class="side-nav">
+            <div class="nav-top">
+                <button class="nav-icon active" data-tab="chats"><i class="ri-chat-3-fill"></i></button>
+                <button class="nav-icon" data-tab="calls"><i class="ri-phone-fill"></i></button>
+                <button class="nav-icon" data-tab="status"><i class="ri-donut-chart-fill"></i></button>
             </div>
-            <div class="header-actions">
-                <button class="icon-btn search-btn hidden" id="header-search-btn"><i class="ri-search-line"></i></button>
-                <div style="position: relative;">
-                    <button class="icon-btn more-btn"><i class="ri-more-2-fill"></i></button>
-                    <div id="header-dropdown" class="header-dropdown hidden">
-                        <div class="dropdown-item">New group</div>
-                        <div class="dropdown-item">New broadcast</div>
-                        <div class="dropdown-item">Linked devices</div>
-                        <div class="dropdown-item">Starred messages</div>
-                        <div class="dropdown-item">Settings</div>
-                    </div>
+            <div class="nav-bottom">
+                <button class="nav-icon" id="settings-btn"><i class="ri-settings-4-fill"></i></button>
+                <div class="nav-avatar-wrapper" id="profile-btn">
+                    <div class="avatar-text" id="my-avatar-placeholder">U</div>
                 </div>
             </div>
-        </header>
-
-        <!-- Main Content Area -->
-        <main id="main-content">
-            <!-- Dynamic content injected here via JS -->
-        </main>
-
-        <!-- Floating Action Button (FAB) -->
-        <button id="fab-btn" class="fab">
-            <i class="ri-message-2-fill"></i>
-        </button>
-
-        <!-- Bottom Navigation -->
-        <nav id="bottom-nav">
-            <button class="nav-item active" data-tab="chats">
-                <div class="nav-icon"><i class="ri-chat-3-fill"></i></div>
-                <span>Chats</span>
-            </button>
-            <button class="nav-item" data-tab="status">
-                <div class="nav-icon"><i class="ri-donut-chart-line"></i></div>
-                <span>Status</span>
-            </button>
-            <button class="nav-item" data-tab="calls">
-                <div class="nav-icon"><i class="ri-phone-line"></i></div>
-                <span>Calls</span>
-            </button>
-            <button class="nav-item" data-tab="settings">
-                <div class="nav-icon"><i class="ri-settings-3-line"></i></div>
-                <span>Settings</span>
-            </button>
         </nav>
-        
-        <!-- Messaging Screen Overlay -->
-        <div id="messaging-container" class="messaging-view"></div>
-        
-        <!-- Generic Subpage Overlay for Settings, Status Viewer, etc. -->
-        <div id="subpage-container" class="messaging-view" style="z-index: 2000;"></div>
+
+        <!-- Column 2: Middle Pane (List View) -->
+        <aside class="list-pane border-right">
+            <header class="pane-header">
+                <h1 id="pane-title">Chats</h1>
+                <div class="pane-actions">
+                    <button class="icon-btn" id="new-chat-btn"><i class="ri-chat-new-line"></i></button>
+                    <button class="icon-btn"><i class="ri-more-2-fill"></i></button>
+                </div>
+            </header>
+            
+            <div class="search-container">
+                <div class="search-bar">
+                    <i class="ri-search-line"></i>
+                    <input type="text" id="global-search" placeholder="Search or start a new chat">
+                </div>
+                <div class="filter-chips">
+                    <span class="chip active">All</span>
+                    <span class="chip">Unread</span>
+                    <span class="chip">Groups</span>
+                </div>
+            </div>
+
+            <div id="main-content" class="scrollable-list">
+                <!-- Chat List injected dynamically via ui.js -->
+            </div>
+        </aside>
+
+        <!-- Column 3: Right Pane (Active Chat / Empty State) -->
+        <main class="active-chat-pane">
+            
+            <!-- Default Empty State -->
+            <div id="empty-state-view" class="empty-state">
+                <div class="empty-state-content">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="App Logo" width="120" style="opacity: 0.3; filter: grayscale(1);">
+                    <h1>Koola Web</h1>
+                    <p>Send and receive messages without keeping your phone online.</p>
+                    <p style="font-size: 13px; opacity: 0.6; margin-top: 10px;"><i class="ri-lock-2-line"></i> End-to-end encrypted protocol</p>
+                </div>
+            </div>
+
+            <!-- Active Messaging Engine -->
+            <div id="messaging-container" class="messaging-view hidden">
+                <!-- Messaging Header, Bubbles, and Input injected dynamically -->
+            </div>
+
+            <!-- Subpage overlay for settings/profile in desktop mode opens here or modal -->
+            <div id="subpage-container" class="subpage-overlay hidden"></div>
+        </main>
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts Modular Architecture -->
     <script type="module" src="js/firebase-init.js"></script>
-    <script src="js/data.js"></script>
-    <script src="js/views/chats.js"></script>
-    <script src="js/views/calls.js"></script>
-    <script src="js/views/status.js"></script>
-    <script src="js/views/settings.js"></script>
-    <script src="js/views/messaging.js"></script>
-    <script src="js/app.js"></script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/webrtc.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

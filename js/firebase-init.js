@@ -1,9 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
-// TODO: Replace the following with your app's Firebase project configuration
-// You can find this in your Firebase Console -> Project Settings -> General -> Your apps
 const firebaseConfig = {
     apiKey: "AIzaSyAPe-5mhJPcVxVJa70UfMJ8X2yO-BuKNao",
     authDomain: "koola-chats.firebaseapp.com",
@@ -14,26 +13,22 @@ const firebaseConfig = {
     measurementId: "G-PCNG63LGJP"
 };
 
-let app, db;
+let app, db, auth;
 
 try {
-    // Only attempt if the user has replaced the dummy 'YOUR_API_KEY'
     if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
+        auth = getAuth(app);
         window.koolaFIREBASE_ACTIVE = true;
-        console.log("Firebase initialized successfully.");
     } else {
         window.koolaFIREBASE_ACTIVE = false;
-        console.log("Firebase is skipping initialization (Waiting for real credentials). Using localized fallback.");
     }
 } catch (e) {
     console.warn("Firebase initialization failed.", e);
     window.koolaFIREBASE_ACTIVE = false;
 }
 
-// Map exports to the window object so Vanilla JS views can use them without being strict ES Modules.
-window.koolaDb = db;
-window.koolaFirestore = {
-    collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, getDoc
-};
+export { db, auth };
+export const firestoreTools = { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, getDoc, updateDoc };
+export const authTools = { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile };
