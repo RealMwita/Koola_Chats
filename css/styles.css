@@ -1,8 +1,9 @@
 :root {
-    /* WhatsApp Dark Mode Palette */
+    /* WhatsApp Dark Mode Palette (Default) */
     --bg-dark: #111B21;
     --bg-darker: #0B141A;
     --sidebar-bg: #202C33;
+    --sidebar-icon: #8696A0;
     --border-color: #2A3942;
     --text-primary: #E9EDEF;
     --text-secondary: #8696A0;
@@ -13,6 +14,21 @@
     --danger-red: #F15C6D;
 }
 
+[data-theme="light"] {
+    /* Traditional Bright Blue Scheme */
+    --bg-dark: #FFFFFF;
+    --bg-darker: #E2E8F0;
+    --sidebar-bg: #1074CF;
+    --sidebar-icon: #D0E3F5;
+    --border-color: #E9EDEF;
+    --text-primary: #111B21;
+    --text-secondary: #667781;
+    --primary-green: #1074CF;
+    --primary-green-hover: #0D61B0;
+    --bubble-in: #FFFFFF;
+    --bubble-out: #DCF8C6;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -20,7 +36,7 @@
     font-family: 'Inter', -apple-system, sans-serif;
 }
 
-body.dark-theme {
+body {
     background-color: var(--bg-dark);
     display: flex;
     justify-content: center;
@@ -113,7 +129,7 @@ body.dark-theme {
 .nav-icon {
     background: none;
     border: none;
-    color: var(--text-secondary);
+    color: var(--sidebar-icon);
     font-size: 24px;
     cursor: pointer;
     width: 40px;

@@ -19,6 +19,96 @@ export const UI = {
         if(this.els.newChatBtn) {
             this.els.newChatBtn.addEventListener('click', () => this.handleNewChat());
         }
+        
+        // Tab Filters Logic
+        const filterChips = document.querySelectorAll('.chip');
+        filterChips.forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                filterChips.forEach(c => c.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                // Re-trigger render with current filter
+                if(window.koolaDocsArr) this.renderChatList(window.koolaDocsArr);
+            });
+        });
+
+        // Theme Toggler
+        const themeIcon = document.getElementById('theme-toggle-icon');
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        if(themeIcon && isLight) {
+            themeIcon.classList.replace('ri-toggle-fill', 'ri-toggle-line');
+            themeIcon.style.color = 'var(--text-secondary)';
+        }
+
+        if(themeBtn) {
+            themeBtn.addEventListener('click', () => {
+                const currentLight = document.documentElement.getAttribute('data-theme') === 'light';
+                if(currentLight) {
+                    document.documentElement.removeAttribute('data-theme');
+                    localStorage.setItem('koola_theme', 'dark');
+                    themeIcon.classList.replace('ri-toggle-line', 'ri-toggle-fill');
+                    themeIcon.style.color = 'var(--primary-green)';
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    localStorage.setItem('koola_theme', 'light');
+                    themeIcon.classList.replace('ri-toggle-fill', 'ri-toggle-line');
+                    themeIcon.style.color = 'var(--text-secondary)';
+                }
+            });
+        }
+
+        // View Navigation (Left Sidebar)
+        const navIcons = document.querySelectorAll('.nav-icon[data-tab]');
+        navIcons.forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                const tab = e.currentTarget.getAttribute('data-tab');
+                
+                // Update active state
+                navIcons.forEach(btn => btn.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+
+                // Update List Pane dynamically
+                const paneTitle = document.getElementById('pane-title');
+                const searchContainer = document.querySelector('.search-container');
+                const newChatBtn = document.getElementById('new-chat-btn');
+                
+                if(tab === 'chats') {
+                    if(paneTitle) paneTitle.textContent = "Chats";
+                    if(searchContainer) searchContainer.style.display = 'block';
+                    if(newChatBtn) newChatBtn.style.display = 'block';
+                    if(window.koolaDocsArr) this.renderChatList(window.koolaDocsArr);
+                } else if(tab === 'calls') {
+                    if(paneTitle) paneTitle.textContent = "Calls";
+                    if(searchContainer) searchContainer.style.display = 'none';
+                    if(newChatBtn) newChatBtn.style.display = 'none';
+                    this.els.chatListContainer.innerHTML = `
+                        <div style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                            <i class="ri-phone-line" style="font-size: 48px;"></i>
+                            <h3 style="margin-top: 16px; color: var(--text-primary);">Call History</h3>
+                            <p style="font-size: 14px; margin-top: 8px;">Incoming and outgoing calls will appear here across your devices.</p>
+                        </div>
+                    `;
+                } else if(tab === 'status') {
+                    if(paneTitle) paneTitle.textContent = "Status";
+                    if(searchContainer) searchContainer.style.display = 'none';
+                    if(newChatBtn) newChatBtn.style.display = 'none';
+                    this.els.chatListContainer.innerHTML = `
+                        <div class="chat-item" style="border-bottom: 8px solid var(--sidebar-bg);">
+                            <div class="chat-item-avatar" style="background: var(--text-secondary);">
+                                <i class="ri-add-line" style="color: white;"></i>
+                            </div>
+                            <div class="chat-item-content border-bottom-none">
+                                <div class="chat-item-top"><div class="chat-item-name">My Status</div></div>
+                                <div class="chat-item-bottom"><div class="chat-item-last">Click to add update</div></div>
+                            </div>
+                        </div>
+                        <div style="padding: 16px; font-weight: 500; font-size: 14px; color: var(--primary-green);">Recent updates</div>
+                        <div style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 13px;">No recent updates right now.</div>
+                    `;
+                }
+            });
+        });
     },
 
     showLoadingChats() {
@@ -26,16 +116,26 @@ export const UI = {
     },
 
     renderChatList(docsArr) {
+        window.koolaDocsArr = docsArr; // Save for filtering
+        const filterState = document.querySelector('.chip.active')?.textContent.trim() || 'All';
+        
+        const filteredDocs = docsArr.filter(chat => {
+            if (filterState === 'Unread') return chat.unread > 0;
+            if (filterState === 'Groups') return chat.isGroup === true; // Assuming future isGroup flag
+            return true;
+        });
+
         let html = '';
-        if (docsArr.length === 0) {
-            html = `<div style="text-align:center; padding: 40px; color: var(--text-secondary);"><p>No chats yet.</p></div>`;
+        if (filteredDocs.length === 0) {
+            html = `<div style="text-align:center; padding: 40px; color: var(--text-secondary);"><p>No chats found.</p></div>`;
         } else {
-            docsArr.forEach(chat => {
+            filteredDocs.forEach(chat => {
                 const isSelected = chat.id === this.activeChatId;
                 const activeClass = isSelected ? 'active' : '';
                 
                 // Exclude current user from participants to find "contact"
-                const contactEmail = chat.participants.find(p => p !== authState.user.email) || 'Unknown';
+                const myEmailStr = authState.user.email.trim().toLowerCase();
+                const contactEmail = chat.participants.find(p => p !== myEmailStr) || 'Unknown';
                 const contactName = chat.names ? chat.names[contactEmail] || contactEmail.split('@')[0] : contactEmail.split('@')[0];
                 const displayAvatar = contactName.charAt(0).toUpperCase();
 
@@ -62,8 +162,8 @@ export const UI = {
         const input = prompt("Enter the precise email of the registered user you want to chat with:");
         if (!input || !input.includes('@')) return;
         
-        const myEmail = authState.user.email;
-        const targetEmail = input.trim();
+        const myEmail = authState.user.email.trim().toLowerCase();
+        const targetEmail = input.trim().toLowerCase();
         if (myEmail === targetEmail) return alert("You cannot chat with yourself.");
 
         const chatId = [myEmail, targetEmail].sort().join('_');
@@ -136,7 +236,7 @@ export const UI = {
             inputEl.value = '';
             
             await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
-                sender: authState.user.email,
+                sender: authState.user.email.trim().toLowerCase(),
                 text: text,
                 timestamp: firestoreTools.serverTimestamp()
             });
@@ -177,7 +277,7 @@ export const UI = {
             } else {
                 snapshot.forEach(docSnap => {
                     const msg = docSnap.data();
-                    const isMe = msg.sender === authState.user.email;
+                    const isMe = msg.sender === authState.user.email.trim().toLowerCase();
                     html += `
                         <div class="message-bubble ${isMe ? 'out' : 'in'}">
                             <div class="message-text">${msg.text}</div>

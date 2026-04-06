@@ -44,13 +44,16 @@ function startLoading() {
 async function syncUserProfile(user) {
     const userRef = firestoreTools.doc(db, "users", user.uid);
     const userDoc = await firestoreTools.getDoc(userRef);
+    const formattedEmail = user.email.trim().toLowerCase();
+    
     if (!userDoc.exists()) {
-        const username = user.email.split('@')[0];
+        const username = formattedEmail.split('@')[0];
         const profilePayload = {
             uid: user.uid,
-            email: user.email,
+            email: formattedEmail,
+            phoneNumber: "", // Future-proofing as requested
             name: username,
-            displayName: username, // For searchable profile names
+            displayName: username,
             bio: "Available",
             lastLogin: firestoreTools.serverTimestamp()
         };
@@ -66,16 +69,17 @@ export async function loginOrRegister(email, password) {
     if (!window.koolaFIREBASE_ACTIVE) return alert("Firebase not configured.");
     if (!email || !password || password.length < 6) return alert("Invalid credentials (min 6 chars)");
 
+    const formattedEmail = email.trim().toLowerCase();
     startLoading();
     try {
         // Try sign in
-        await authTools.signInWithEmailAndPassword(auth, email, password);
+        await authTools.signInWithEmailAndPassword(auth, formattedEmail, password);
         document.getElementById('auth-overlay').classList.add('hidden');
     } catch(err) {
         if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
             // Attempt Registration if user not found
             try {
-                await authTools.createUserWithEmailAndPassword(auth, email, password);
+                await authTools.createUserWithEmailAndPassword(auth, formattedEmail, password);
                 document.getElementById('auth-overlay').classList.add('hidden');
             } catch(regErr) {
                 alert("Auth Error: " + regErr.message);

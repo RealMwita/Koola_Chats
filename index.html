@@ -99,11 +99,40 @@
             </div>
 
             <!-- Subpage overlay for settings/profile in desktop mode opens here or modal -->
-            <div id="subpage-container" class="subpage-overlay hidden"></div>
+            <div id="subpage-container" class="subpage-overlay hidden" style="position: absolute; top:0; left:0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 50; display: flex; flex-direction: column;">
+                <header class="chat-header">
+                    <div class="chat-header-info" onclick="document.getElementById('subpage-container').classList.add('hidden')">
+                        <i class="ri-arrow-left-line" style="font-size: 20px;"></i>
+                        <h2 style="font-weight: 500; font-size: 18px; margin-left: 12px;">Settings</h2>
+                    </div>
+                </header>
+                <div style="padding: 32px; overflow-y: auto;">
+                    <div style="text-align: center; margin-bottom: 32px;">
+                        <div class="avatar-text" style="width: 100px; height: 100px; font-size: 40px; margin: 0 auto 16px;" id="settings-avatar">U</div>
+                        <h2 id="settings-name" style="font-size: 24px;">Name</h2>
+                        <p id="settings-email" style="color: var(--text-secondary); margin-top: 8px;">email@example.com</p>
+                    </div>
+                    <div style="background: var(--sidebar-bg); border-radius: 12px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 0;" id="theme-toggle-btn">
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <i class="ri-moon-fill" style="font-size: 20px; color: var(--text-secondary);"></i>
+                                <span style="font-size: 16px;">Dark Mode</span>
+                            </div>
+                            <i class="ri-toggle-fill" style="font-size: 32px; color: var(--primary-green);" id="theme-toggle-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
     <!-- Scripts Modular Architecture -->
+    <script>
+        // Init theme instantly before DOM load to prevent flash
+        if(localStorage.getItem('koola_theme') === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    </script>
     <script type="module" src="js/firebase-init.js"></script>
     <script type="module" src="js/auth.js"></script>
     <script type="module" src="js/ui.js"></script>

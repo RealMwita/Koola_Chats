@@ -24,12 +24,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
-    // 4. Bind Sidebar Logout (Settings avatar)
+    // 4. Bind Sidebar Settings and Logout
     const profileBtn = document.getElementById('profile-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    
     if (profileBtn) {
         profileBtn.addEventListener('click', () => {
             const out = confirm("Log out of Koola Web?");
             if(out) logout();
+        });
+    }
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            document.getElementById('subpage-container').classList.remove('hidden');
         });
     }
 
@@ -39,14 +47,24 @@ document.addEventListener("DOMContentLoaded", () => {
             // User Logged In successfully
             document.getElementById('app-container').classList.remove('hidden');
             
-            // Set Avatar
+            // Set Avatars and Settings Profile Data
             const avatarTxt = document.getElementById('my-avatar-placeholder');
-            if(avatarTxt) avatarTxt.textContent = profileData.name.charAt(0).toUpperCase();
+            const setAvatar = document.getElementById('settings-avatar');
+            const setName = document.getElementById('settings-name');
+            const setEmail = document.getElementById('settings-email');
+            
+            const firstLetter = profileData.name.charAt(0).toUpperCase();
+
+            if(avatarTxt) avatarTxt.textContent = firstLetter;
+            if(setAvatar) setAvatar.textContent = firstLetter;
+            if(setName) setName.textContent = profileData.name;
+            if(setEmail) setEmail.textContent = profileData.email;
 
             // Start global chat listener
             UI.showLoadingChats();
+            const formattedEmail = user.email.trim().toLowerCase();
             const chatsRef = firestoreTools.collection(db, "chats");
-            const q = firestoreTools.query(chatsRef, firestoreTools.where("participants", "array-contains", user.email));
+            const q = firestoreTools.query(chatsRef, firestoreTools.where("participants", "array-contains", formattedEmail));
             
             if(UI.unsubscribeChat) UI.unsubscribeChat();
             UI.unsubscribeChat = firestoreTools.onSnapshot(q, (snapshot) => {
