@@ -156,6 +156,26 @@ window.initChats = function() {
                         
                         docsArr.forEach((chat, index) => {
                             
+                            // Setup WebRTC Call Listener for this specific chat
+                            if (!window.koolaCallListeners) window.koolaCallListeners = {};
+                            if (!window.koolaCallListeners[chat.id]) {
+                                const callsRef = collection(window.koolaDb, "chats", chat.id, "calls");
+                                window.koolaCallListeners[chat.id] = onSnapshot(callsRef, (callSnap) => {
+                                    callSnap.docChanges().forEach(change => {
+                                        if (change.type === "added") {
+                                            const callData = change.doc.data();
+                                            // Ensure the call has an offer and we are not the caller
+                                            if (callData.offer && !callData.answer && callData.caller !== currentUser) {
+                                                if (window.answerCall) {
+                                                    const callerName = chat.name || chat.participants.find(p => p !== currentUser) || "Unknown Contact";
+                                                    window.answerCall(chat.id, change.doc.id, callData, callerName);
+                                                }
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                            
                             let avatarHtml = chat.avatar ? `<img src="${chat.avatar}" class="avatar" alt="Avatar">` : `<div class="avatar-text">${chat.name ? chat.name.charAt(0) : '#'}</div>`;
                             let badgeHtml = chat.unread > 0 ? `<div class="unread-badge">${chat.unread}</div>` : '';
                             

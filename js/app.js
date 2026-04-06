@@ -307,52 +307,86 @@ document.addEventListener("DOMContentLoaded", () => {
         const audioBtn = document.getElementById("audio-call-btn");
 
         async function initiateCall(videoEnabled) {
+            if (!window.koolaFIREBASE_ACTIVE) return alert("Firebase required for calls.");
+            const { collection, doc, setDoc, addDoc, onSnapshot } = window.koolaFirestore;
+
+            let localStream;
             try {
-                // Request native device permissions for Camera and Microphone
-                const stream = await navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: true });
-                
-                // Overlay generic Call UI
-                const callUI = document.createElement("div");
-                callUI.style.position = "absolute";
-                callUI.style.top = "0";
-                callUI.style.left = "0";
-                callUI.style.width = "100%";
-                callUI.style.height = "100%";
-                callUI.style.backgroundColor = "#0b141a";
-                callUI.style.zIndex = "2000";
-                callUI.style.display = "flex";
-                callUI.style.flexDirection = "column";
-                callUI.style.alignItems = "center";
-                callUI.style.color = "white";
-                
-                callUI.innerHTML = `
-                    <div style="flex-grow:1; width: 100%; position: relative;">
-                        ${videoEnabled ? '<video id="local-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>' : '<div style="margin-top: 100px; text-align: center; font-size: 24px;">Calling '+chatName+'...</div>'}
-                        <div style="padding: 24px; position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-evenly; align-items: center;">
-                            <button class="round-btn" style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="ri-mic-off-fill" style="font-size: 28px;"></i></button>
-                            <button id="end-call-btn" class="round-btn" style="background: var(--danger-red); width: 60px; height: 60px; color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="ri-phone-fill" style="font-size: 28px; transform: rotate(135deg);"></i></button>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.appendChild(callUI);
-                if (videoEnabled) {
-                    const videoEl = document.getElementById('local-video');
-                    if (videoEl) videoEl.srcObject = stream;
-                }
-                
-                const endCallBtn = document.getElementById('end-call-btn');
-                if (endCallBtn) {
-                    endCallBtn.addEventListener('click', () => {
-                        stream.getTracks().forEach(track => track.stop());
-                        callUI.remove();
-                    });
-                }
-                
-            } catch (err) {
-                console.warn("Media device access error", err);
-                alert("Camera/Microphone access was denied or is restricted on this browser: " + err.message);
+                localStream = await navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: true });
+            } catch(err) {
+                return alert("Camera/Microphone access denied: " + err.message);
             }
+
+            const servers = {
+                iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }]
+            };
+            const pc = new RTCPeerConnection(servers);
+            
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            const callUI = document.createElement("div");
+            callUI.style.position = "absolute"; callUI.style.top = "0"; callUI.style.left = "0"; callUI.style.width = "100%"; callUI.style.height = "100%"; callUI.style.backgroundColor = "#0b141a"; callUI.style.zIndex = "3000"; callUI.style.display = "flex"; callUI.style.flexDirection = "column";
+            
+            callUI.innerHTML = `
+                <div style="flex-grow:1; width: 100%; position: relative;">
+                    <video id="remote-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
+                    <video id="local-video" autoplay muted playsinline style="width: 120px; height: 160px; position: absolute; bottom: 120px; right: 20px; border-radius: 12px; object-fit: cover;"></video>
+                    <div style="padding: 24px; position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center;">
+                        <button id="end-call-btn" class="round-btn" style="background: var(--danger-red); width: 60px; height: 60px; color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="ri-phone-fill" style="font-size: 28px; transform: rotate(135deg);"></i></button>
+                    </div>
+                    <div id="calling-text" style="position: absolute; top: 100px; width: 100%; text-align: center; color: white; font-size: 20px;">Calling...</div>
+                </div>
+            `;
+            document.body.appendChild(callUI);
+            document.getElementById('local-video').srcObject = localStream;
+            
+            const remoteVideo = document.getElementById('remote-video');
+            const remoteStream = new MediaStream();
+            remoteVideo.srcObject = remoteStream;
+            
+            pc.ontrack = (event) => {
+                document.getElementById('calling-text').style.display = 'none';
+                event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+            };
+
+            const callDocRef = doc(collection(window.koolaDb, "chats", chatId, "calls"));
+            const callerCandidates = collection(callDocRef, "callerCandidates");
+            const calleeCandidates = collection(callDocRef, "calleeCandidates");
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) addDoc(callerCandidates, event.candidate.toJSON());
+            };
+
+            const offerDescription = await pc.createOffer();
+            await pc.setLocalDescription(offerDescription);
+
+            const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
+            await setDoc(callDocRef, { offer, caller: localStorage.getItem('koola_user'), type: videoEnabled ? 'video' : 'audio' });
+
+            const unsub = onSnapshot(callDocRef, (snapshot) => {
+                const data = snapshot.data();
+                if (!pc.currentRemoteDescription && data?.answer) {
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    pc.setRemoteDescription(answerDescription);
+                }
+            });
+
+            const unsubIce = onSnapshot(calleeCandidates, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const candidate = new RTCIceCandidate(change.doc.data());
+                        pc.addIceCandidate(candidate);
+                    }
+                });
+            });
+
+            document.getElementById('end-call-btn').onclick = () => {
+                localStream.getTracks().forEach(t => t.stop());
+                pc.close();
+                if(unsub) unsub();
+                if(unsubIce) unsubIce();
+                callUI.remove();
+            };
         }
 
         if (videoBtn) videoBtn.addEventListener("click", () => initiateCall(true));
@@ -584,6 +618,92 @@ document.addEventListener("DOMContentLoaded", () => {
             }, 60000);
         }
     }
+
+    // WebRTC Callee (Answering) Global Logic
+    window.answerCall = async function(chatId, callId, callData, contactName) {
+        const { collection, doc, updateDoc, addDoc, onSnapshot } = window.koolaFirestore;
+        const videoEnabled = callData.type === 'video';
+
+        const ringUI = document.createElement("div");
+        ringUI.style.position = "absolute"; ringUI.style.top = "0"; ringUI.style.left = "0"; ringUI.style.width = "100%"; ringUI.style.height = "100%"; ringUI.style.backgroundColor = "#0b141a"; ringUI.style.zIndex = "3000"; ringUI.style.display = "flex"; ringUI.style.flexDirection = "column"; ringUI.style.alignItems = "center"; ringUI.style.justifyContent = "center"; ringUI.style.color = "white";
+        ringUI.innerHTML = `
+            <div style="font-size: 24px; margin-bottom: 40px;">Incoming ${videoEnabled ? 'Video' : 'Voice'} Call</div>
+            <div style="font-size: 32px; font-weight: bold; margin-bottom: 80px;">${contactName}</div>
+            <div style="display: flex; gap: 40px;">
+                <button id="reject-call-btn" class="round-btn" style="background: var(--danger-red); width: 70px; height: 70px; border-radius: 50%; color: white; border: none; font-size: 32px;"><i class="ri-phone-fill" style="transform: rotate(135deg);"></i></button>
+                <button id="accept-call-btn" class="round-btn pulse" style="background: var(--primary-green); width: 70px; height: 70px; border-radius: 50%; color: white; border: none; font-size: 32px;"><i class="ri-phone-fill"></i></button>
+            </div>
+        `;
+        document.body.appendChild(ringUI);
+
+        document.getElementById("reject-call-btn").onclick = () => ringUI.remove();
+        document.getElementById("accept-call-btn").onclick = async () => {
+            ringUI.remove();
+            let localStream;
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: true });
+            } catch(e) { return alert("Camera/Microphone required to answer."); }
+
+            const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
+            const pc = new RTCPeerConnection(servers);
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            const callUI = document.createElement("div");
+            callUI.style.position = "absolute"; callUI.style.top = "0"; callUI.style.left = "0"; callUI.style.width = "100%"; callUI.style.height = "100%"; callUI.style.backgroundColor = "#0b141a"; callUI.style.zIndex = "3000"; callUI.style.display = "flex"; callUI.style.flexDirection = "column";
+            callUI.innerHTML = `
+                <div style="flex-grow:1; width: 100%; position: relative;">
+                    <video id="remote-video-ans" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
+                    <video id="local-video-ans" autoplay muted playsinline style="width: 120px; height: 160px; position: absolute; bottom: 120px; right: 20px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></video>
+                    <div style="padding: 24px; position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center;">
+                        <button id="active-end-call-btn" class="round-btn" style="background: var(--danger-red); width: 60px; height: 60px; color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="ri-phone-fill" style="transform: rotate(135deg); font-size: 28px;"></i></button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(callUI);
+            document.getElementById('local-video-ans').srcObject = localStream;
+            
+            const remoteVideo = document.getElementById('remote-video-ans');
+            const remoteStream = new MediaStream();
+            remoteVideo.srcObject = remoteStream;
+            
+            pc.ontrack = (event) => {
+                event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+            };
+
+            const callDocRef = doc(window.koolaDb, "chats", chatId, "calls", callId);
+            const callerCandidates = collection(callDocRef, "callerCandidates");
+            const calleeCandidates = collection(callDocRef, "calleeCandidates");
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) addDoc(calleeCandidates, event.candidate.toJSON());
+            };
+
+            const offerDescription = new RTCSessionDescription(callData.offer);
+            await pc.setRemoteDescription(offerDescription);
+
+            const answerDescription = await pc.createAnswer();
+            await pc.setLocalDescription(answerDescription);
+
+            const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
+            await updateDoc(callDocRef, { answer });
+
+            const unsubIce = onSnapshot(callerCandidates, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const candidate = new RTCIceCandidate(change.doc.data());
+                        pc.addIceCandidate(candidate);
+                    }
+                });
+            });
+
+            document.getElementById('active-end-call-btn').onclick = () => {
+                localStream.getTracks().forEach(t => t.stop());
+                pc.close();
+                if(unsubIce) unsubIce();
+                callUI.remove();
+            };
+        };
+    };
 
     function renderProfileSetupScreen(phoneNumber) {
         onboardingContainer.innerHTML = `
