@@ -15,18 +15,38 @@
 }
 
 [data-theme="light"] {
-    /* Traditional Bright Blue Scheme */
+    /* Balanced Light Theme */
     --bg-dark: #FFFFFF;
-    --bg-darker: #E2E8F0;
-    --sidebar-bg: #1074CF;
-    --sidebar-icon: #D0E3F5;
-    --border-color: #E9EDEF;
+    --bg-darker: #EFEFEF; /* Classic chat wall background */
+    --sidebar-bg: #F0F2F5; /* Proper gray sidebar */
+    --sidebar-icon: #54656F;
+    --border-color: #D1D7DB;
     --text-primary: #111B21;
     --text-secondary: #667781;
-    --primary-green: #1074CF;
+    --primary-green: #1074CF; 
     --primary-green-hover: #0D61B0;
     --bubble-in: #FFFFFF;
-    --bubble-out: #DCF8C6;
+    --bubble-out: #E3F2FD; /* Light blue bubble */
+}
+
+/* Explicit Bright Blue Override for Light Mode Sidebar */
+[data-theme="light"] .side-nav {
+    background-color: #1074CF;
+    border-right: none;
+}
+[data-theme="light"] .side-nav .nav-icon {
+    color: rgba(255, 255, 255, 0.7);
+}
+[data-theme="light"] .side-nav .nav-icon.active {
+    color: #FFFFFF;
+}
+[data-theme="light"] .avatar-text {
+    background-color: #FFFFFF;
+    color: #1074CF;
+}
+
+[data-theme="light"] .active-chat-pane {
+    background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M50 0L100 50L50 100L0 50Z" fill="%23D1D7DB" fill-opacity="0.4" fill-rule="evenodd"/%3E%3C/svg%3E');
 }
 
 * {
@@ -249,6 +269,16 @@ body {
     flex-direction: column;
     position: relative;
     background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M50 0L100 50L50 100L0 50Z" fill="%23202C33" fill-opacity="0.2" fill-rule="evenodd"/%3E%3C/svg%3E');
+}
+
+.messaging-view {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .empty-state {

@@ -78,6 +78,36 @@
             <div id="main-content" class="scrollable-list">
                 <!-- Chat List injected dynamically via ui.js -->
             </div>
+
+            <!-- Contacts Subpane Overlay -->
+            <div id="contacts-pane" class="subpage-overlay hidden" style="position: absolute; top:0; left:0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 50; display: flex; flex-direction: column;">
+                <header class="chat-header">
+                    <div class="chat-header-info" onclick="document.getElementById('contacts-pane').classList.add('hidden')">
+                        <i class="ri-arrow-left-line" style="font-size: 20px;"></i>
+                        <h2 style="font-weight: 500; font-size: 18px; margin-left: 12px;">New Chat</h2>
+                    </div>
+                </header>
+                <div style="padding: 16px;">
+                    <div style="display: flex; align-items: center; cursor: pointer; color: var(--primary-green); padding: 12px;" onclick="document.getElementById('new-contact-form').classList.toggle('hidden')">
+                        <div class="avatar-text" style="background: var(--primary-green); color: white; margin-right: 16px; width: 44px; height: 44px; font-size: 24px;"><i class="ri-user-add-fill"></i></div>
+                        <span style="font-size: 16px; font-weight: 500;">New contact</span>
+                    </div>
+                    
+                    <div id="new-contact-form" class="hidden" style="background: var(--sidebar-bg); border-radius: 8px; padding: 16px; margin-top: 8px; margin-bottom: 24px;">
+                        <input type="email" id="contact-email" placeholder="Email Address (required)" style="width: 100%; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px; border-radius: 6px; margin-bottom: 8px; outline: none;">
+                        <input type="text" id="contact-name" placeholder="Contact Name" style="width: 100%; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px; border-radius: 6px; margin-bottom: 8px; outline: none;">
+                        <input type="text" id="contact-phone" placeholder="Phone Number (optional)" style="width: 100%; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px; border-radius: 6px; margin-bottom: 16px; outline: none;">
+                        
+                        <div id="contact-save-feedback" style="color: var(--danger-red); font-size: 13px; margin-bottom: 12px; text-align: center;"></div>
+                        <button id="save-contact-btn" class="primary-btn" style="width: 100%; padding: 10px;">Save & Chat</button>
+                    </div>
+                </div>
+
+                <div style="padding: 16px; font-size: 14px; color: var(--primary-green); font-weight: 500;">Contacts on Koola</div>
+                <div id="contacts-list" class="scrollable-list" style="flex-grow: 1;">
+                    <!-- Contacts mapped here -->
+                </div>
+            </div>
         </aside>
 
         <!-- Column 3: Right Pane (Active Chat / Empty State) -->

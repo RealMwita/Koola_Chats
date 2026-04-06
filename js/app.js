@@ -86,6 +86,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
             
+            // Hook Native Contacts Subsystem
+            UI.bindContactsListener();
+            
         } else {
             // User Logged Out
             document.getElementById('app-container').classList.add('hidden');

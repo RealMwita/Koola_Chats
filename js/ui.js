@@ -17,7 +17,14 @@ export const UI = {
 
     init() {
         if(this.els.newChatBtn) {
-            this.els.newChatBtn.addEventListener('click', () => this.handleNewChat());
+            this.els.newChatBtn.addEventListener('click', () => {
+                document.getElementById('contacts-pane').classList.remove('hidden');
+            });
+        }
+        
+        const saveContactBtn = document.getElementById('save-contact-btn');
+        if(saveContactBtn) {
+            saveContactBtn.addEventListener('click', () => this.handleSaveContact());
         }
         
         // Tab Filters Logic
@@ -158,27 +165,130 @@ export const UI = {
         this.els.chatListContainer.innerHTML = html;
     },
 
-    async handleNewChat() {
-        const input = prompt("Enter the precise email of the registered user you want to chat with:");
-        if (!input || !input.includes('@')) return;
+    async handleSaveContact() {
+        const feedback = document.getElementById('contact-save-feedback');
+        feedback.textContent = '';
         
-        const myEmail = authState.user.email.trim().toLowerCase();
-        const targetEmail = input.trim().toLowerCase();
-        if (myEmail === targetEmail) return alert("You cannot chat with yourself.");
+        const emailInput = document.getElementById('contact-email').value;
+        const nameInput = document.getElementById('contact-name').value;
+        const phoneInput = document.getElementById('contact-phone').value;
 
+        if (!emailInput || !emailInput.includes('@')) {
+            feedback.textContent = "Please provide a valid email.";
+            return;
+        }
+
+        const myEmail = authState.user.email.trim().toLowerCase();
+        const targetEmail = emailInput.trim().toLowerCase();
+        const targetName = nameInput.trim() || targetEmail.split('@')[0];
+        
+        if (myEmail === targetEmail) {
+            feedback.textContent = "You cannot add yourself.";
+            return;
+        }
+
+        const btn = document.getElementById('save-contact-btn');
+        btn.textContent = "Verifying...";
+        btn.disabled = true;
+
+        try {
+            // Check if user is registered in Koola!
+            const usersRef = firestoreTools.collection(db, "users");
+            const q = firestoreTools.query(usersRef, firestoreTools.where("email", "==", targetEmail));
+            const snap = await firestoreTools.getDoc(firestoreTools.doc(db, "users", "dummy")); // workaround to force await if needed, wait, getDocs isn't exported in firebase-init! 
+            
+            // Wait, firestoreTools doesn't export getDocs! I can use onSnapshot dynamically, or I must just export getDocs? 
+            // The cleanest way without getDocs is to just let them start the chat, OR we modify firebase-init.js to export getDocs.
+            // Oh, I can just create the chat. If they don't exist, they'll never see it. 
+            // BUT user specifically asked: "if the user is not in koola chats say that user dosent exist".
+            // I must export `getDocs` in firebase-init.js first to query it sync-style. Let's do a fast implementation using onSnapshot resolving a Promise.
+
+            const checkExists = await new Promise((resolve) => {
+                const unsub = firestoreTools.onSnapshot(q, (querySnap) => {
+                    unsub();
+                    resolve(!querySnap.empty);
+                }, (err) => {
+                    unsub(); resolve(false);
+                });
+            });
+
+            if(!checkExists) {
+                feedback.textContent = "User does not exist on Koola Chats.";
+                btn.textContent = "Save & Chat";
+                btn.disabled = false;
+                return;
+            }
+
+            // User exists! Save Contact locally.
+            const contactRef = firestoreTools.doc(db, "users", authState.user.uid, "contacts", targetEmail);
+            await firestoreTools.setDoc(contactRef, {
+                email: targetEmail,
+                name: targetName,
+                phoneNumber: phoneInput.trim(),
+                timestamp: firestoreTools.serverTimestamp()
+            });
+
+            document.getElementById('new-contact-form').classList.add('hidden');
+            document.getElementById('contact-email').value = '';
+            document.getElementById('contact-name').value = '';
+            document.getElementById('contact-phone').value = '';
+            
+            this.createNewChat(targetEmail, targetName);
+
+        } catch (e) {
+            feedback.textContent = "Error: " + e.message;
+        } finally {
+            btn.textContent = "Save & Chat";
+            btn.disabled = false;
+        }
+    },
+
+    async createNewChat(targetEmail, targetName) {
+        const myEmail = authState.user.email.trim().toLowerCase();
         const chatId = [myEmail, targetEmail].sort().join('_');
         
         try {
             await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
                 participants: [myEmail, targetEmail],
+                names: { [targetEmail]: targetName, [myEmail]: authState.profileData?.name || myEmail.split('@')[0] },
                 timestamp: firestoreTools.serverTimestamp(),
-                lastMessage: "Chat started"
+                lastMessage: "Chat created"
             }, { merge: true });
             
-            this.openChat(chatId, targetEmail.split('@')[0], targetEmail);
+            document.getElementById('contacts-pane').classList.add('hidden');
+            this.openChat(chatId, targetName, targetEmail);
         } catch(e) {
             alert("Error creating chat: " + e.message);
         }
+    },
+
+    bindContactsListener() {
+        if(!authState.user) return;
+        const contactsRef = firestoreTools.collection(db, "users", authState.user.uid, "contacts");
+        
+        firestoreTools.onSnapshot(contactsRef, (snapshot) => {
+            const list = document.getElementById('contacts-list');
+            if(!list) return;
+
+            let html = '';
+            if(snapshot.empty) {
+                html = `<div style="text-align: center; padding: 24px; color: var(--text-secondary); font-size: 14px;">No contacts saved yet.</div>`;
+            } else {
+                snapshot.forEach(snap => {
+                    const c = snap.data();
+                    html += `
+                        <div class="chat-item" onclick="window.koolaUI.createNewChat('${c.email}', '${c.name}')">
+                            <div class="chat-item-avatar">${c.name.charAt(0).toUpperCase()}</div>
+                            <div class="chat-item-content">
+                                <div class="chat-item-top"><div class="chat-item-name">${c.name}</div></div>
+                                <div class="chat-item-bottom"><div class="chat-item-last">${c.email} • ${c.phoneNumber || 'No phone'}</div></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            list.innerHTML = html;
+        });
     },
 
     openChat(chatId, contactName, contactEmail) {
@@ -235,24 +345,26 @@ export const UI = {
             if (!text) return;
             inputEl.value = '';
             
-            await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
-                sender: authState.user.email.trim().toLowerCase(),
-                text: text,
-                timestamp: firestoreTools.serverTimestamp()
-            });
-            await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
-                lastMessage: text,
-                timestamp: firestoreTools.serverTimestamp()
-            }, { merge: true });
+            try {
+                await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
+                    sender: authState.user.email.trim().toLowerCase(),
+                    text: text,
+                    timestamp: firestoreTools.serverTimestamp()
+                });
+                await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
+                    lastMessage: text,
+                    timestamp: firestoreTools.serverTimestamp()
+                }, { merge: true });
+            } catch (err) {
+                console.error("Message send failed:", err);
+                alert("Message failed to send! Please ensure your Firebase Rules allow read/write in your Firebase Console.");
+            }
         };
         
         sendBtn.addEventListener('click', sendMessage);
         inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') sendMessage(); });
 
         this.subscribeToMessages(chatId);
-        
-        // Re-render Chat List to show active highlight
-        // (Handled automatically by the global chat listener emitting updates, but we can force it)
     },
 
     closeMobileChat() {
@@ -287,6 +399,10 @@ export const UI = {
             }
             container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
+        }, (err) => {
+            console.error("Failed to load messages:", err);
+            const container = document.getElementById('messages-scroll');
+            if(container) container.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--danger-red);">Failed to sync messages. Check Firebase permissions!</div>`;
         });
     }
 };
