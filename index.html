@@ -137,11 +137,20 @@
                     </div>
                 </header>
                 <div style="padding: 32px; overflow-y: auto;">
-                    <div style="text-align: center; margin-bottom: 32px;">
+                    <div style="text-align: center; margin-bottom: 24px;">
                         <div class="avatar-text" style="width: 100px; height: 100px; font-size: 40px; margin: 0 auto 16px;" id="settings-avatar">U</div>
                         <h2 id="settings-name" style="font-size: 24px;">Name</h2>
                         <p id="settings-email" style="color: var(--text-secondary); margin-top: 8px;">email@example.com</p>
                     </div>
+                    
+                    <div style="background: var(--sidebar-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                        <label style="font-size:13px; color:var(--text-secondary);">About</label>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="text" id="settings-bio" placeholder="Hi there! I am using Koola." style="width:100%; background:none; border:none; outline:none; color:var(--text-primary); font-size:16px; margin-top:4px;">
+                            <button id="save-bio-btn" style="background:none; border:none; color:var(--primary-green); font-size:20px; cursor:pointer;"><i class="ri-check-line"></i></button>
+                        </div>
+                    </div>
+                    
                     <div style="background: var(--sidebar-bg); border-radius: 12px; padding: 16px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 0;" id="theme-toggle-btn">
                             <div style="display: flex; align-items: center; gap: 16px;">
@@ -163,6 +172,12 @@
             document.documentElement.setAttribute('data-theme', 'light');
         }
     </script>
+    
+    <!-- Audio Elements for Message FX -->
+    <audio id="audio-send" src="https://assets.mixkit.co/active_storage/sfx/237/237-preview.mp3" preload="auto"></audio>
+    <audio id="audio-receive" src="https://assets.mixkit.co/active_storage/sfx/238/238-preview.mp3" preload="auto"></audio>
+    
+    <!-- Scripts Modular Architecture -->
     <script type="module" src="js/firebase-init.js"></script>
     <script type="module" src="js/auth.js"></script>
     <script type="module" src="js/ui.js"></script>

@@ -47,11 +47,19 @@ document.addEventListener("DOMContentLoaded", () => {
             // User Logged In successfully
             document.getElementById('app-container').classList.remove('hidden');
             
+            // Request Notification Permissions
+            if (window.Notification && Notification.permission !== 'granted') {
+                Notification.requestPermission();
+            }
+            
             // Set Avatars and Settings Profile Data
             const avatarTxt = document.getElementById('my-avatar-placeholder');
             const setAvatar = document.getElementById('settings-avatar');
             const setName = document.getElementById('settings-name');
             const setEmail = document.getElementById('settings-email');
+            
+            const setBio = document.getElementById('settings-bio');
+            const saveBioBtn = document.getElementById('save-bio-btn');
             
             const firstLetter = profileData.name.charAt(0).toUpperCase();
 
@@ -59,6 +67,22 @@ document.addEventListener("DOMContentLoaded", () => {
             if(setAvatar) setAvatar.textContent = firstLetter;
             if(setName) setName.textContent = profileData.name;
             if(setEmail) setEmail.textContent = profileData.email;
+            if(setBio) setBio.value = profileData.bio || '';
+            
+            if(saveBioBtn) {
+                saveBioBtn.onclick = async () => {
+                    const bioText = setBio.value.trim();
+                    try {
+                        const { firestoreTools } = await import('./firebase-init.js');
+                        await firestoreTools.updateDoc(firestoreTools.doc(db, "users", user.uid), {
+                            bio: bioText
+                        });
+                        alert("About status updated!");
+                    } catch(e) {
+                        alert("Failed to update status.");
+                    }
+                };
+            }
 
             // Start global chat listener
             UI.showLoadingChats();

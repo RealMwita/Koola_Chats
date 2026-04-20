@@ -311,7 +311,7 @@ export const UI = {
                     <div class="chat-item-avatar" style="width:40px;height:40px;font-size:16px;">${contactName.charAt(0).toUpperCase()}</div>
                     <div class="chat-header-text">
                         <h2>${contactName}</h2>
-                        <span>${contactEmail}</span>
+                        <span id="header-bio-span" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; display:block;">Loading...</span>
                     </div>
                 </div>
                 <div class="pane-actions">
@@ -323,46 +323,167 @@ export const UI = {
             <div id="messages-scroll" class="messages-scroll">
                 <div style="text-align:center; padding-top:20px;"><i class="ri-loader-4-line pulse"></i></div>
             </div>
-            <div class="chat-input-area">
-                <button class="icon-btn"><i class="ri-emotion-line"></i></button>
+            <div class="chat-input-area" style="position:relative;">
+                <button class="icon-btn" id="emoji-btn"><i class="ri-emotion-line"></i></button>
+                <div id="emoji-container" class="hidden" style="position: absolute; bottom: 80px; left: 16px; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius:12px; overflow:hidden;"></div>
+                
+                <button class="icon-btn" style="position:relative; overflow:hidden;">
+                    <i class="ri-attachment-2"></i>
+                    <input type="file" id="media-upload-input" accept="image/*,video/*" style="opacity:0; position:absolute; left:0; top:0; width:100%; height:100%; cursor:pointer;">
+                </button>
                 <div class="chat-input-wrapper">
-                    <input type="text" id="chat-input" placeholder="Type a message...">
+                    <input type="text" id="chat-input" placeholder="Type a message or record audio...">
                 </div>
-                <button class="icon-btn" id="send-btn"><i class="ri-send-plane-fill"></i></button>
+                <button class="icon-btn" id="send-voice-btn"><i class="ri-mic-fill" id="send-icon"></i></button>
             </div>
         `;
+
+        // Fetch target Bio
+        firestoreTools.getDocs(firestoreTools.query(firestoreTools.collection(db, "users"), firestoreTools.where("email", "==", contactEmail)))
+            .then(snap => {
+                const spn = document.getElementById('header-bio-span');
+                if(!snap.empty && spn) {
+                    spn.textContent = snap.docs[0].data().bio || contactEmail;
+                } else if(spn) {
+                    spn.textContent = contactEmail;
+                }
+            }).catch(e => {
+                const spn = document.getElementById('header-bio-span');
+                if(spn) spn.textContent = contactEmail;
+            });
 
         if(window.innerWidth <= 768) {
             document.getElementById('mobile-back-btn').style.display = 'block';
         }
 
-        // Attach Send Listener
-        const sendBtn = document.getElementById('send-btn');
         const inputEl = document.getElementById('chat-input');
+        const iconEl = document.getElementById('send-icon');
+        const sendVoiceBtn = document.getElementById('send-voice-btn');
         
-        const sendMessage = async () => {
-            const text = inputEl.value.trim();
-            if (!text) return;
-            inputEl.value = '';
+        // Dynamic Icon
+        inputEl.addEventListener('input', () => {
+            if(inputEl.value.trim().length > 0) {
+                iconEl.className = 'ri-send-plane-fill';
+            } else {
+                iconEl.className = 'ri-mic-fill';
+            }
+        });
+
+        // Emoji Integration
+        document.getElementById('emoji-btn').addEventListener('click', () => {
+            const container = document.getElementById('emoji-container');
+            if(!document.querySelector('emoji-picker')) {
+                import('https://cdn.jsdelivr.net/npm/emoji-picker-element@1.21.3/index.js').then(() => {
+                    const picker = document.createElement('emoji-picker');
+                    picker.addEventListener('emoji-click', e => {
+                        inputEl.value += e.detail.unicode;
+                        inputEl.dispatchEvent(new Event('input'));
+                    });
+                    container.appendChild(picker);
+                });
+            }
+            container.classList.toggle('hidden');
+        });
+
+        // Media Upload Logic
+        document.getElementById('media-upload-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            if(file.size > 5000000) return alert("File exceeds 5MB limit. Please choose a smaller file.");
+            
+            const mediaType = file.type.startsWith('video') ? 'video' : 'image';
+            alert(`Uploading ${mediaType}... please wait.`);
+            const { storage, storageTools } = await import('./firebase-init.js');
+            const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_${file.name}`);
             
             try {
+                await storageTools.uploadBytes(mediaRef, file);
+                const mediaUrl = await storageTools.getDownloadURL(mediaRef);
+                
                 await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
                     sender: authState.user.email.trim().toLowerCase(),
-                    text: text,
+                    mediaUrl: mediaUrl,
+                    mediaType: mediaType,
                     timestamp: firestoreTools.serverTimestamp()
                 });
-                await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
-                    lastMessage: text,
-                    timestamp: firestoreTools.serverTimestamp()
-                }, { merge: true });
+                document.getElementById('audio-send')?.play().catch(()=>{});
             } catch (err) {
-                console.error("Message send failed:", err);
-                alert("Message failed to send! Please ensure your Firebase Rules allow read/write in your Firebase Console.");
+                alert("Upload failed. Make sure Firebase Storage rules are public or authorized.");
+            }
+        });
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        const executeSend = async () => {
+            const text = inputEl.value.trim();
+            if (text) {
+                inputEl.value = '';
+                inputEl.dispatchEvent(new Event('input')); // Reset mic icon
+                document.getElementById('emoji-container').classList.add('hidden');
+                try {
+                    await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
+                        sender: authState.user.email.trim().toLowerCase(),
+                        text: text,
+                        timestamp: firestoreTools.serverTimestamp()
+                    });
+                    await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
+                        lastMessage: text,
+                        timestamp: firestoreTools.serverTimestamp()
+                    }, { merge: true });
+                    document.getElementById('audio-send')?.play().catch(()=>{});
+                } catch (err) {
+                    alert("Message failed!");
+                }
+                return;
+            }
+
+            // Voice Note Handlers
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+                    isRecording = true;
+                    
+                    iconEl.className = 'ri-stop-circle-line pulse';
+                    iconEl.style.color = 'var(--danger-red)';
+                    audioChunks = [];
+                    
+                    mediaRecorder.addEventListener('dataavailable', event => audioChunks.push(event.data));
+                } catch(e) {
+                    alert("Microphone permission denied.");
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                iconEl.className = 'ri-mic-fill';
+                iconEl.style.color = '';
+                
+                mediaRecorder.addEventListener('stop', async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const { storage, storageTools } = await import('./firebase-init.js');
+                    const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote.webm`);
+                    
+                    try {
+                        await storageTools.uploadBytes(mediaRef, audioBlob);
+                        const mediaUrl = await storageTools.getDownloadURL(mediaRef);
+                        await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
+                            sender: authState.user.email.trim().toLowerCase(),
+                            mediaUrl: mediaUrl,
+                            mediaType: 'audio',
+                            timestamp: firestoreTools.serverTimestamp()
+                        });
+                        document.getElementById('audio-send')?.play().catch(()=>{});
+                    } catch(e) {}
+                    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                });
             }
         };
-        
-        sendBtn.addEventListener('click', sendMessage);
-        inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') sendMessage(); });
+
+        sendVoiceBtn.addEventListener('click', executeSend);
+        inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') executeSend(); });
 
         this.subscribeToMessages(chatId);
     },
@@ -379,26 +500,50 @@ export const UI = {
         const msgsRef = firestoreTools.collection(db, "chats", chatId, "messages");
         const q = firestoreTools.query(msgsRef, firestoreTools.orderBy("timestamp", "asc"));
         
+        let initiallyLoaded = false;
+        
         this.unsubscribeMessages = firestoreTools.onSnapshot(q, (snapshot) => {
             const container = document.getElementById('messages-scroll');
             if(!container) return;
             
+            let hasNewMsg = false;
+            snapshot.docChanges().forEach(change => { if(change.type==='added') hasNewMsg=true; });
+            
             let html = '';
             if (snapshot.empty) {
-                html = `<div style="text-align:center; padding-top:20px; color:var(--text-secondary);"><div class="date-badge" style="margin: 0 auto;">Today</div></div>`;
+                html = `<div style="text-align:center; padding-top:20px; color:var(--text-secondary);"><div class="date-badge" style="margin: 0 auto; background: var(--sidebar-bg); padding: 4px 12px; border-radius: 12px; display:inline-block;">Today</div></div>`;
             } else {
                 snapshot.forEach(docSnap => {
                     const msg = docSnap.data();
                     const isMe = msg.sender === authState.user.email.trim().toLowerCase();
+                    
+                    let contentHtml = msg.text ? `<div class="message-text">${msg.text}</div>` : '';
+                    if(msg.mediaUrl) {
+                        if(msg.mediaType === 'image') contentHtml += `<img src="${msg.mediaUrl}" style="max-width:100%; border-radius:8px; margin-top:4px;">`;
+                        if(msg.mediaType === 'video') contentHtml += `<video controls src="${msg.mediaUrl}" style="max-width:100%; border-radius:8px; margin-top:4px; max-height:250px;"></video>`;
+                        if(msg.mediaType === 'audio') contentHtml += `<audio controls src="${msg.mediaUrl}" style="max-width:250px; margin-top:4px;"></audio>`;
+                    }
+                    
                     html += `
                         <div class="message-bubble ${isMe ? 'out' : 'in'}">
-                            <div class="message-text">${msg.text}</div>
+                            ${contentHtml}
                         </div>
                     `;
                 });
             }
             container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
+
+            if (initiallyLoaded && hasNewMsg) {
+                const lastMsg = snapshot.docs[snapshot.docs.length-1]?.data();
+                if (lastMsg && lastMsg.sender !== authState.user.email.trim().toLowerCase()) {
+                    document.getElementById('audio-receive')?.play().catch(()=>{});
+                    if (window.Notification && Notification.permission === 'granted') {
+                        new Notification(`Koola Message`, { body: lastMsg.text || 'Sent an attachment' });
+                    }
+                }
+            }
+            initiallyLoaded = true;
         }, (err) => {
             console.error("Failed to load messages:", err);
             const container = document.getElementById('messages-scroll');

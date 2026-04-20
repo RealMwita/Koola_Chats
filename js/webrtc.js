@@ -52,21 +52,25 @@ class WebRTCManager {
 
                     // For the Caller: Listen for Answer, Reject, or Timeout
                     if (change.type === "modified" && this.isCaller && this.currentCallId === callId) {
+                        const statTxt = document.getElementById('call-status-text');
+                        
                         if (data.status === 'answered' && data.answer && !this.pc.currentRemoteDescription) {
                             if(this.callTimeout) clearTimeout(this.callTimeout);
                             this.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                            document.getElementById('call-status-text').textContent = "Connected";
+                            if(statTxt) statTxt.textContent = "Connected";
                         }
                         if (data.status === 'rejected') {
-                            alert("Call was declined.");
-                            this.teardown(true);
+                            if(statTxt) statTxt.textContent = "Declined";
+                            setTimeout(() => this.teardown(true), 1000);
                         }
                     }
 
                     // For both: Teardown if other ends
                     if (change.type === "modified" || change.type === "removed") {
                         if (data.status === 'ended' && this.currentCallId === callId) {
-                            this.teardown(false); // Just teardown locally
+                            const statTxt = document.getElementById('call-status-text');
+                            if(statTxt) statTxt.textContent = "Call Ended";
+                            setTimeout(() => this.teardown(false), 1000); 
                         }
                     }
                 });
@@ -251,14 +255,11 @@ class WebRTCManager {
             const locVid = document.getElementById('local-video-stream');
             if(locVid && this.localStream) locVid.srcObject = this.localStream;
             
-            this.remoteStream = new MediaStream();
-            const remVid = document.getElementById('remote-video-stream');
-            if(remVid) remVid.srcObject = this.remoteStream;
-
             this.pc.ontrack = (event) => {
-                event.streams[0].getTracks().forEach(track => {
-                    this.remoteStream.addTrack(track);
-                });
+                const remVid = document.getElementById('remote-video-stream');
+                if(remVid && event.streams && event.streams[0]) {
+                    remVid.srcObject = event.streams[0];
+                }
             };
 
             document.getElementById('end-active-call-btn').onclick = () => this.teardown(true);
