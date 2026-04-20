@@ -539,7 +539,9 @@ export const UI = {
                 if (lastMsg && lastMsg.sender !== authState.user.email.trim().toLowerCase()) {
                     document.getElementById('audio-receive')?.play().catch(()=>{});
                     if (window.Notification && Notification.permission === 'granted') {
-                        new Notification(`Koola Message`, { body: lastMsg.text || 'Sent an attachment' });
+                        if (document.hidden) {
+                            new Notification(`Koola Message`, { body: lastMsg.text || 'Sent an attachment' });
+                        }
                     }
                 }
             }

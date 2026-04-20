@@ -137,6 +137,9 @@ class WebRTCManager {
     }
 
     showIncomingCallRing(chatId, callId, data) {
+        const ringtone = document.getElementById('audio-ringtone');
+        if(ringtone) ringtone.play().catch(()=>{});
+
         const ringUI = document.createElement("div");
         ringUI.className = "full-overlay";
         ringUI.id = "ringing-ui";
@@ -270,6 +273,12 @@ class WebRTCManager {
         if(this.callTimeout) clearTimeout(this.callTimeout);
         if(this.unsubIce) this.unsubIce();
         if(this.unsubCallDoc) this.unsubCallDoc();
+        
+        const ringtone = document.getElementById('audio-ringtone');
+        if(ringtone) {
+            ringtone.pause();
+            ringtone.currentTime = 0;
+        }
         
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
