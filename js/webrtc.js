@@ -23,7 +23,10 @@ class WebRTCManager {
 
     async getMedia(videoEnabled) {
         try {
-            return await navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: true });
+            return await navigator.mediaDevices.getUserMedia({ 
+                video: videoEnabled, 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+            });
         } catch(err) {
             alert(`Microphone/Camera permission denied. Details: ${err.message}`);
             return null;
@@ -102,6 +105,7 @@ class WebRTCManager {
         this.currentChatId = chatId;
         
         this.pc = new RTCPeerConnection(STUN_SERVERS);
+        
         this.localStream.getTracks().forEach(track => this.pc.addTrack(track, this.localStream));
 
         this.mountCallUI(videoEnabled, contactName, 'Calling...');
@@ -226,6 +230,7 @@ class WebRTCManager {
         }
 
         this.pc = new RTCPeerConnection(STUN_SERVERS);
+
         this.localStream.getTracks().forEach(track => this.pc.addTrack(track, this.localStream));
 
         this.mountCallUI(videoEnabled, data.caller.split('@')[0], 'Connected');
@@ -289,21 +294,21 @@ class WebRTCManager {
         `;
         document.body.appendChild(ui);
 
+        this.remoteStream = new MediaStream();
+        this.pc.ontrack = (event) => {
+            this.remoteStream.addTrack(event.track);
+            const remVidCheck = document.getElementById('remote-video-stream');
+            if(remVidCheck && remVidCheck.srcObject !== this.remoteStream) {
+                remVidCheck.srcObject = this.remoteStream;
+            }
+        };
+
         setTimeout(() => {
             const locVid = document.getElementById('local-video-stream');
             if(locVid && this.localStream) locVid.srcObject = this.localStream;
             
-            this.remoteStream = new MediaStream();
             const remVid = document.getElementById('remote-video-stream');
             if(remVid) remVid.srcObject = this.remoteStream;
-
-            this.pc.ontrack = (event) => {
-                this.remoteStream.addTrack(event.track);
-                const remVidCheck = document.getElementById('remote-video-stream');
-                if(remVidCheck && remVidCheck.srcObject !== this.remoteStream) {
-                    remVidCheck.srcObject = this.remoteStream;
-                }
-            };
 
             document.getElementById('end-active-call-btn').onclick = () => this.teardown(true);
         }, 100);

@@ -125,6 +125,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             // Start global chat listener
+            
+            if (window.Notification && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+
             UI.showLoadingChats();
             const formattedEmail = user.email.trim().toLowerCase();
             const chatsRef = firestoreTools.collection(db, "chats");
@@ -176,7 +181,13 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                             
                             if (window.koolaUI && window.koolaDocsArr) {
-                                window.koolaUI.renderChatList(window.koolaDocsArr);
+                                clearTimeout(window.koolaRenderThrottle);
+                                window.koolaRenderThrottle = setTimeout(() => {
+                                    const activeTab = document.querySelector('.nav-icon.active')?.getAttribute('data-tab');
+                                    if (activeTab === 'chats' || !activeTab) {
+                                        window.koolaUI.renderChatList(window.koolaDocsArr);
+                                    }
+                                }, 300);
                             }
                         });
                     }
@@ -184,7 +195,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 window.koolaDocsArr = docsArr;
                 // Seed initial load before unread map boots up
-                UI.renderChatList(docsArr);
+                const currentTab = document.querySelector('.nav-icon.active')?.getAttribute('data-tab');
+                if (currentTab === 'chats' || !currentTab) {
+                    UI.renderChatList(docsArr);
+                }
                 
                 // Broadcast chats arrays to WebRTC engine if needed to attach listeners
                 if(window.koolaRTC && window.koolaRTC.attachGlobalCallListeners) {

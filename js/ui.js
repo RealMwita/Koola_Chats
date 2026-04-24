@@ -492,7 +492,8 @@ export const UI = {
                     mediaRecorder.addEventListener('dataavailable', event => audioChunks.push(event.data));
                     
                     mediaRecorder.addEventListener('stop', async () => {
-                        const audioBlob = new Blob(audioChunks); // Stripped strict MIME type allowing OS native fallback (Fixes iOS constraints)
+                        const localType = audioChunks[0]?.type || 'audio/mp4';
+                        const audioBlob = new Blob(audioChunks, { type: localType }); // Safely binds OS fallback natively to prevent strict Firebase storage parsing crashes
                         const { storage, storageTools } = await import('./firebase-init.js');
                         const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote`);
                         
