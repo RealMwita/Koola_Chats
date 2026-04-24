@@ -89,13 +89,48 @@ export const UI = {
                     if(paneTitle) paneTitle.textContent = "Calls";
                     if(searchContainer) searchContainer.style.display = 'none';
                     if(newChatBtn) newChatBtn.style.display = 'none';
-                    this.els.chatListContainer.innerHTML = `
-                        <div style="padding: 24px; text-align: center; color: var(--text-secondary);">
-                            <i class="ri-phone-line" style="font-size: 48px;"></i>
-                            <h3 style="margin-top: 16px; color: var(--text-primary);">Call History</h3>
-                            <p style="font-size: 14px; margin-top: 8px;">Incoming and outgoing calls will appear here across your devices.</p>
-                        </div>
-                    `;
+                    
+                    if (window.unsubCallsHook) window.unsubCallsHook();
+                    const callHistoryRef = window.firestoreTools.collection(window.db, "users", window.authState.user.uid, "callHistory");
+                    const qCalls = window.firestoreTools.query(callHistoryRef, window.firestoreTools.orderBy("timestamp", "desc"));
+                    
+                    window.unsubCallsHook = window.firestoreTools.onSnapshot(qCalls, (snap) => {
+                        let html = '<div style="padding: 16px;">';
+                        if (snap.empty) {
+                            html += `
+                                <div style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                                    <i class="ri-phone-line" style="font-size: 48px;"></i>
+                                    <h3 style="margin-top: 16px; color: var(--text-primary);">Call History</h3>
+                                    <p style="font-size: 14px; margin-top: 8px;">Incoming and outgoing calls will appear here across your devices.</p>
+                                </div>
+                            `;
+                        } else {
+                            snap.forEach(docSnap => {
+                                const call = docSnap.data();
+                                const iconColor = call.type === 'missed' ? 'var(--danger-red)' : 'var(--primary-green)';
+                                const iconType = call.callType === 'video' ? 'ri-video-chat-fill' : 'ri-phone-fill';
+                                const arrowType = call.type === 'incoming' ? 'ri-arrow-left-down-line' : 'ri-arrow-right-up-line';
+                                
+                                html += `
+                                <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+                                    <div class="avatar-text" style="width: 44px; height: 44px; font-size: 20px; flex-shrink: 0;">${(call.contactName||'U').charAt(0).toUpperCase()}</div>
+                                    <div style="flex-grow: 1; margin-left: 14px;">
+                                        <div style="font-weight: 500; font-size: 16px; color: ${call.type === 'missed' ? 'var(--danger-red)' : 'var(--text-primary)'}">${call.contactName || call.contactEmail || 'Unknown'}</div>
+                                        <div style="font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; margin-top: 4px;">
+                                            <i class="${arrowType}" style="color: ${iconColor}; margin-right: 4px;"></i>
+                                            ${call.timestamp ? new Date(call.timestamp.toMillis()).toLocaleString() : 'Just now'}
+                                        </div>
+                                    </div>
+                                    <div style="color: var(--primary-green); font-size: 22px; cursor:pointer;" onclick="window.koolaUI.createNewChat('${call.contactEmail}', '${call.contactName}')">
+                                        <i class="${iconType}"></i>
+                                    </div>
+                                </div>
+                                `;
+                            });
+                        }
+                        html += '</div>';
+                        this.els.chatListContainer.innerHTML = html;
+                    });
                 } else if(tab === 'status') {
                     if(paneTitle) paneTitle.textContent = "Status";
                     if(searchContainer) searchContainer.style.display = 'none';
@@ -127,7 +162,7 @@ export const UI = {
         const filterState = document.querySelector('.chip.active')?.textContent.trim() || 'All';
         
         const filteredDocs = docsArr.filter(chat => {
-            if (filterState === 'Unread') return chat.unread > 0;
+            if (filterState === 'Unread') return chat.unreadCount > 0;
             if (filterState === 'Groups') return chat.isGroup === true; // Assuming future isGroup flag
             return true;
         });
@@ -154,8 +189,9 @@ export const UI = {
                                 <div class="chat-item-name">${contactName}</div>
                                 <div class="chat-item-time">${chat.time || ''}</div>
                             </div>
-                            <div class="chat-item-bottom">
-                                <div class="chat-item-last">${chat.lastMessage || '...'}</div>
+                            <div class="chat-item-bottom" style="display:flex; justify-content:space-between; align-items:center;">
+                                <div class="chat-item-last" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:80%;">${chat.lastMessage || '...'}</div>
+                                ${chat.unreadCount > 0 ? `<div class="unread-badge">${chat.unreadCount}</div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -404,6 +440,7 @@ export const UI = {
                     sender: authState.user.email.trim().toLowerCase(),
                     mediaUrl: mediaUrl,
                     mediaType: mediaType,
+                    status: 'sent',
                     timestamp: firestoreTools.serverTimestamp()
                 });
                 document.getElementById('audio-send')?.play().catch(()=>{});
@@ -426,6 +463,7 @@ export const UI = {
                     await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
                         sender: authState.user.email.trim().toLowerCase(),
                         text: text,
+                        status: 'sent',
                         timestamp: firestoreTools.serverTimestamp()
                     });
                     await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
@@ -452,35 +490,36 @@ export const UI = {
                     audioChunks = [];
                     
                     mediaRecorder.addEventListener('dataavailable', event => audioChunks.push(event.data));
+                    
+                    mediaRecorder.addEventListener('stop', async () => {
+                        const audioBlob = new Blob(audioChunks); // Stripped strict MIME type allowing OS native fallback (Fixes iOS constraints)
+                        const { storage, storageTools } = await import('./firebase-init.js');
+                        const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote`);
+                        
+                        try {
+                            await storageTools.uploadBytes(mediaRef, audioBlob);
+                            const mediaUrl = await storageTools.getDownloadURL(mediaRef);
+                            await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
+                                sender: authState.user.email.trim().toLowerCase(),
+                                mediaUrl: mediaUrl,
+                                mediaType: 'audio',
+                                status: 'sent',
+                                timestamp: firestoreTools.serverTimestamp()
+                            });
+                            document.getElementById('audio-send')?.play().catch(()=>{});
+                        } catch(err) {
+                            alert("Voice Note upload failed: " + err.message);
+                        }
+                        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                    });
                 } catch(e) {
                     alert("Microphone permission denied.");
                 }
             } else {
-                mediaRecorder.stop();
                 isRecording = false;
                 iconEl.className = 'ri-mic-fill';
                 iconEl.style.color = '';
-                
-                mediaRecorder.addEventListener('stop', async () => {
-                    const mimeType = mediaRecorder.mimeType || 'audio/webm';
-                    const ext = (mimeType.includes('mp4') || mimeType.includes('m4a')) ? 'm4a' : 'webm';
-                    const audioBlob = new Blob(audioChunks, { type: mimeType });
-                    const { storage, storageTools } = await import('./firebase-init.js');
-                    const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote.${ext}`);
-                    
-                    try {
-                        await storageTools.uploadBytes(mediaRef, audioBlob);
-                        const mediaUrl = await storageTools.getDownloadURL(mediaRef);
-                        await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
-                            sender: authState.user.email.trim().toLowerCase(),
-                            mediaUrl: mediaUrl,
-                            mediaType: 'audio',
-                            timestamp: firestoreTools.serverTimestamp()
-                        });
-                        document.getElementById('audio-send')?.play().catch(()=>{});
-                    } catch(e) {}
-                    mediaRecorder.stream.getTracks().forEach(t => t.stop());
-                });
+                mediaRecorder.stop();
             }
         };
 
@@ -509,7 +548,16 @@ export const UI = {
             if(!container) return;
             
             let hasNewMsg = false;
-            snapshot.docChanges().forEach(change => { if(change.type==='added') hasNewMsg=true; });
+            snapshot.docChanges().forEach(change => { 
+                if(change.type==='added' || change.type==='modified') {
+                    if (change.type === 'added') hasNewMsg = true;
+                    
+                    const msgData = change.doc.data();
+                    if (msgData.sender !== window.authState.user.email.trim().toLowerCase() && msgData.status !== 'read') {
+                        window.firestoreTools.updateDoc(change.doc.ref, { status: 'read' }).catch(()=>{});
+                    }
+                }
+            });
             
             let html = '';
             if (snapshot.empty) {
@@ -525,10 +573,21 @@ export const UI = {
                         if(msg.mediaType === 'video') contentHtml += `<video controls src="${msg.mediaUrl}" style="max-width:100%; border-radius:8px; margin-top:4px; max-height:250px;"></video>`;
                         if(msg.mediaType === 'audio') contentHtml += `<audio controls src="${msg.mediaUrl}" style="max-width:250px; margin-top:4px;"></audio>`;
                     }
+
+                    let tickSvg = '';
+                    if (isMe) {
+                        if (msg.status === 'read') tickSvg = '<i class="ri-check-double-line" style="color:#53bdeb; font-size:16px; margin-left:4px; vertical-align:bottom;"></i>';
+                        else if (msg.status === 'delivered') tickSvg = '<i class="ri-check-double-line" style="color:var(--text-secondary); font-size:16px; margin-left:4px; vertical-align:bottom;"></i>';
+                        else tickSvg = '<i class="ri-check-line" style="color:var(--text-secondary); font-size:16px; margin-left:4px; vertical-align:bottom;"></i>';
+                    }
                     
                     html += `
                         <div class="message-bubble ${isMe ? 'out' : 'in'}">
                             ${contentHtml}
+                            <div style="font-size: 11px; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center;">
+                                ${msg.timestamp ? new Date(msg.timestamp.toMillis()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                ${isMe ? tickSvg : ''}
+                            </div>
                         </div>
                     `;
                 });
@@ -536,17 +595,7 @@ export const UI = {
             container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
 
-            if (initiallyLoaded && hasNewMsg) {
-                const lastMsg = snapshot.docs[snapshot.docs.length-1]?.data();
-                if (lastMsg && lastMsg.sender !== authState.user.email.trim().toLowerCase()) {
-                    document.getElementById('audio-receive')?.play().catch(()=>{});
-                    if (window.Notification && Notification.permission === 'granted') {
-                        if (document.hidden) {
-                            new Notification(`Koola Message`, { body: lastMsg.text || 'Sent an attachment' });
-                        }
-                    }
-                }
-            }
+
             initiallyLoaded = true;
         }, (err) => {
             console.error("Failed to load messages:", err);

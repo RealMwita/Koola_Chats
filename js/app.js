@@ -142,6 +142,48 @@ document.addEventListener("DOMContentLoaded", () => {
                     return timeB - timeA;
                 });
                 
+                // Delivery, Unread Badge, and Background Push Engine
+                docsArr.forEach(chat => {
+                    const msgRef = firestoreTools.collection(db, "chats", chat.id, "messages");
+                    
+                    if (!window.koolaUnsubMap) window.koolaUnsubMap = {};
+                    if (!window.koolaUnsubMap[chat.id]) {
+                        const unreadq = firestoreTools.query(msgRef, firestoreTools.where("status", "in", ["sent", "delivered"]));
+                        window.koolaUnsubMap[chat.id] = firestoreTools.onSnapshot(unreadq, snap => {
+                            let unreads = 0;
+                            let newlyArrived = false;
+                            
+                            snap.forEach(docSnap => {
+                                const val = docSnap.data();
+                                if (val.sender !== formattedEmail) {
+                                    unreads++;
+                                    if (val.status === 'sent') {
+                                        newlyArrived = true;
+                                        firestoreTools.updateDoc(docSnap.ref, { status: 'delivered' }).catch(()=>{});
+                                    }
+                                }
+                            });
+                            
+                            // Attach count to our global model
+                            const matchedChat = window.koolaDocsArr?.find(c => c.id === chat.id);
+                            if (matchedChat) matchedChat.unreadCount = unreads;
+                            
+                            if (newlyArrived) {
+                                document.getElementById('audio-receive')?.play().catch(()=>{});
+                                if (window.Notification && Notification.permission === 'granted' && document.hidden) {
+                                    new Notification(`Koola Message`, { body: 'You have new unread messages' });
+                                }
+                            }
+                            
+                            if (window.koolaUI && window.koolaDocsArr) {
+                                window.koolaUI.renderChatList(window.koolaDocsArr);
+                            }
+                        });
+                    }
+                });
+
+                window.koolaDocsArr = docsArr;
+                // Seed initial load before unread map boots up
                 UI.renderChatList(docsArr);
                 
                 // Broadcast chats arrays to WebRTC engine if needed to attach listeners

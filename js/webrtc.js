@@ -110,6 +110,18 @@ class WebRTCManager {
         const callDocRef = firestoreTools.doc(callDocsRef);
         this.currentCallId = callDocRef.id;
 
+        const myEmail = authState.user.email.trim().toLowerCase();
+        const receiverEmail = chatId.split('_').find(e => e !== myEmail);
+        
+        try {
+            const myCallHistory = firestoreTools.collection(db, "users", authState.user.uid, "callHistory");
+            firestoreTools.addDoc(myCallHistory, {
+                type: 'outgoing', callType: videoEnabled ? 'video' : 'audio', 
+                contactEmail: receiverEmail, contactName: contactName,
+                timestamp: firestoreTools.serverTimestamp()
+            });
+        } catch(e) {}
+
         // Collect Caller ICE candidates
         const callerCandidates = firestoreTools.collection(callDocRef, "callerCandidates");
         this.pc.onicecandidate = (event) => {
@@ -196,6 +208,15 @@ class WebRTCManager {
         this.isCaller = false;
         this.currentChatId = chatId;
         this.currentCallId = callId;
+
+        try {
+            const myCallHistory = firestoreTools.collection(db, "users", authState.user.uid, "callHistory");
+            firestoreTools.addDoc(myCallHistory, {
+                type: 'incoming', callType: data.type, 
+                contactEmail: data.caller, contactName: data.caller.split('@')[0],
+                timestamp: firestoreTools.serverTimestamp()
+            });
+        } catch(e) {}
 
         const videoEnabled = data.type === 'video';
         this.localStream = await this.getMedia(videoEnabled);
