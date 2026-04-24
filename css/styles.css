@@ -84,7 +84,9 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    height: 100dvh;
+    width: 100%;
+    position: fixed;
     overflow: hidden;
     color: var(--text-primary);
 }
@@ -144,9 +146,12 @@ body {
 /* Main Desktop Layout */
 .whatsapp-layout {
     display: flex;
-    width: 100vw;
-    height: 100vh;
+    height: 100dvh; /* Adapt dynamically when iOS Safari top/bottom bars hide */
+    max-width: 1600px;
+    margin: 0 auto;
     background-color: var(--bg-dark);
+    position: relative;
+    width: 100%;
 }
 
 /* Left Sidebar Navigation */

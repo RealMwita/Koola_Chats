@@ -84,6 +84,46 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
             }
 
+            // Custom Sounds Initialization
+            const msgInput = document.getElementById('custom-message-sound');
+            const callInput = document.getElementById('custom-call-sound');
+            const audioRec = document.getElementById('audio-receive');
+            const audioRing = document.getElementById('audio-ringtone');
+
+            if(localStorage.getItem('customMsgSound') && audioRec) {
+                audioRec.src = localStorage.getItem('customMsgSound');
+            }
+            if(localStorage.getItem('customCallSound') && audioRing) {
+                audioRing.src = localStorage.getItem('customCallSound');
+            }
+
+            if(msgInput) {
+                msgInput.addEventListener('change', e => {
+                    const file = e.target.files[0];
+                    if(!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        localStorage.setItem('customMsgSound', reader.result);
+                        if(audioRec) audioRec.src = reader.result;
+                        alert("Message sound updated successfully!");
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+            if(callInput) {
+                callInput.addEventListener('change', e => {
+                    const file = e.target.files[0];
+                    if(!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        localStorage.setItem('customCallSound', reader.result);
+                        if(audioRing) audioRing.src = reader.result;
+                        alert("Call ringtone updated successfully!");
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
             // Start global chat listener
             UI.showLoadingChats();
             const formattedEmail = user.email.trim().toLowerCase();

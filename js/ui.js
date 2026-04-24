@@ -462,9 +462,11 @@ export const UI = {
                 iconEl.style.color = '';
                 
                 mediaRecorder.addEventListener('stop', async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                    const ext = (mimeType.includes('mp4') || mimeType.includes('m4a')) ? 'm4a' : 'webm';
+                    const audioBlob = new Blob(audioChunks, { type: mimeType });
                     const { storage, storageTools } = await import('./firebase-init.js');
-                    const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote.webm`);
+                    const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote.${ext}`);
                     
                     try {
                         await storageTools.uploadBytes(mediaRef, audioBlob);

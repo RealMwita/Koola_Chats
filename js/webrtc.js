@@ -46,18 +46,32 @@ class WebRTCManager {
                         if (data.caller !== authState.user.email) {
                             if (!this.pc) {
                                 this.showIncomingCallRing(chat.id, callId, data);
+                                if (window.Notification && Notification.permission === 'granted') {
+                                    if (document.hidden) {
+                                        new Notification("Incoming Call", { body: `Incoming ${data.type} call from ${data.caller.split('@')[0]}` });
+                                    }
+                                }
                             }
                         }
                     }
 
-                    // For the Caller: Listen for Answer, Reject, or Timeout
+                    // For the Caller: Listen for Ringing, Answer, Reject, or Timeout
                     if (change.type === "modified" && this.isCaller && this.currentCallId === callId) {
                         const statTxt = document.getElementById('call-status-text');
+                        
+                        if (data.status === 'ringing') {
+                            const ringback = document.getElementById('audio-ringback');
+                            if (ringback) ringback.play().catch(()=>{});
+                            if (statTxt) statTxt.textContent = "Ringing...";
+                        }
                         
                         if (data.status === 'answered' && data.answer && !this.pc.currentRemoteDescription) {
                             if(this.callTimeout) clearTimeout(this.callTimeout);
                             this.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                             if(statTxt) statTxt.textContent = "Connected";
+                            
+                            const ringback = document.getElementById('audio-ringback');
+                            if (ringback) { ringback.pause(); ringback.currentTime = 0; }
                         }
                         if (data.status === 'rejected') {
                             if(statTxt) statTxt.textContent = "Declined";
@@ -242,7 +256,7 @@ class WebRTCManager {
                     <div id="call-status-text" style="font-size: 14px; opacity: 0.8; margin-top: 4px;">${statusTxt}</div>
                 </div>
 
-                <div style="padding: 24px; position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center; gap: 32px;">
+                <div style="padding: 24px; position: absolute; bottom: calc(40px + env(safe-area-inset-bottom)); width: 100%; display: flex; justify-content: center; gap: 32px;">
                     <button class="round-btn" style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; color: white; border: none; border-radius: 50%; cursor: pointer;">
                         <i class="ri-mic-off-fill" style="font-size: 28px;"></i>
                     </button>
@@ -258,10 +272,15 @@ class WebRTCManager {
             const locVid = document.getElementById('local-video-stream');
             if(locVid && this.localStream) locVid.srcObject = this.localStream;
             
+            this.remoteStream = new MediaStream();
+            const remVid = document.getElementById('remote-video-stream');
+            if(remVid) remVid.srcObject = this.remoteStream;
+
             this.pc.ontrack = (event) => {
-                const remVid = document.getElementById('remote-video-stream');
-                if(remVid && event.streams && event.streams[0]) {
-                    remVid.srcObject = event.streams[0];
+                this.remoteStream.addTrack(event.track);
+                const remVidCheck = document.getElementById('remote-video-stream');
+                if(remVidCheck && remVidCheck.srcObject !== this.remoteStream) {
+                    remVidCheck.srcObject = this.remoteStream;
                 }
             };
 
@@ -278,6 +297,12 @@ class WebRTCManager {
         if(ringtone) {
             ringtone.pause();
             ringtone.currentTime = 0;
+        }
+
+        const ringback = document.getElementById('audio-ringback');
+        if(ringback) {
+            ringback.pause();
+            ringback.currentTime = 0;
         }
         
         if (this.localStream) {
