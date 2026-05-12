@@ -91,10 +91,10 @@ export const UI = {
                     if(newChatBtn) newChatBtn.style.display = 'none';
                     
                     if (window.unsubCallsHook) window.unsubCallsHook();
-                    const callHistoryRef = window.firestoreTools.collection(window.db, "users", window.authState.user.uid, "callHistory");
-                    const qCalls = window.firestoreTools.query(callHistoryRef, window.firestoreTools.orderBy("timestamp", "desc"));
+                    const callHistoryRef = firestoreTools.collection(db, "users", authState.user.uid, "callHistory");
+                    const qCalls = firestoreTools.query(callHistoryRef, firestoreTools.orderBy("timestamp", "desc"));
                     
-                    window.unsubCallsHook = window.firestoreTools.onSnapshot(qCalls, (snap) => {
+                    window.unsubCallsHook = firestoreTools.onSnapshot(qCalls, (snap) => {
                         let html = '<div style="padding: 16px;">';
                         if (snap.empty) {
                             html += `
@@ -554,8 +554,8 @@ export const UI = {
                     if (change.type === 'added') hasNewMsg = true;
                     
                     const msgData = change.doc.data();
-                    if (msgData.sender !== window.authState.user.email.trim().toLowerCase() && msgData.status !== 'read') {
-                        window.firestoreTools.updateDoc(change.doc.ref, { status: 'read' }).catch(()=>{});
+                    if (msgData.sender !== authState.user.email.trim().toLowerCase() && msgData.status !== 'read') {
+                        firestoreTools.updateDoc(change.doc.ref, { status: 'read' }).catch(()=>{});
                     }
                 }
             });
@@ -582,11 +582,20 @@ export const UI = {
                         else tickSvg = '<i class="ri-check-line" style="color:var(--text-secondary); font-size:16px; margin-left:4px; vertical-align:bottom;"></i>';
                     }
                     
+                    let timeString = '';
+                    if (msg.timestamp) {
+                        try {
+                            timeString = typeof msg.timestamp.toMillis === 'function' ? 
+                                new Date(msg.timestamp.toMillis()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 
+                                new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        } catch(e) {}
+                    }
+                    
                     html += `
                         <div class="message-bubble ${isMe ? 'out' : 'in'}">
                             ${contentHtml}
                             <div style="font-size: 11px; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center;">
-                                ${msg.timestamp ? new Date(msg.timestamp.toMillis()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                ${timeString}
                                 ${isMe ? tickSvg : ''}
                             </div>
                         </div>
