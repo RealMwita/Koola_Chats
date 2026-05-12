@@ -65,6 +65,35 @@ export const UI = {
             });
         }
 
+        // Push Notifications Toggler
+        const notifyBtn = document.getElementById('notify-toggle-btn');
+        const notifyIcon = document.getElementById('notify-toggle-icon');
+        
+        if(notifyBtn && window.Notification) {
+            // Init state
+            if(Notification.permission === 'granted') {
+                notifyIcon.classList.replace('ri-toggle-line', 'ri-toggle-fill');
+                notifyIcon.style.color = 'var(--primary-green)';
+            }
+            
+            notifyBtn.addEventListener('click', () => {
+                if(Notification.permission !== 'granted') {
+                    Notification.requestPermission().then(perm => {
+                        if(perm === 'granted') {
+                            notifyIcon.classList.replace('ri-toggle-line', 'ri-toggle-fill');
+                            notifyIcon.style.color = 'var(--primary-green)';
+                            alert("Push Notifications enabled!");
+                        } else {
+                            alert("Permission denied by browser.");
+                        }
+                    });
+                } else {
+                    alert("Push Notifications are already granted. You can disable them in your browser settings.");
+                }
+            });
+        }
+
+
         // View Navigation (Left Sidebar)
         const navIcons = document.querySelectorAll('.nav-icon[data-tab]');
         navIcons.forEach(icon => {
@@ -356,6 +385,12 @@ export const UI = {
                     <button class="icon-btn"><i class="ri-more-2-fill"></i></button>
                 </div>
             </header>
+            ${contactName === contactEmail ? `
+            <div id="save-unknown-contact-banner" style="background: var(--sidebar-bg); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);">
+                <div style="font-size: 13px; color: var(--text-secondary);">This sender is not in your contacts.</div>
+                <button id="quick-save-contact-btn" class="primary-btn" style="padding: 6px 12px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; background: var(--primary-green); color: white;">Save Contact</button>
+            </div>
+            ` : ''}
             <div id="messages-scroll" class="messages-scroll">
                 <div style="text-align:center; padding-top:20px;"><i class="ri-loader-4-line pulse"></i></div>
             </div>
@@ -390,6 +425,26 @@ export const UI = {
 
         if(window.innerWidth <= 768) {
             document.getElementById('mobile-back-btn').style.display = 'block';
+        }
+
+        const quickSaveBtn = document.getElementById('quick-save-contact-btn');
+        if (quickSaveBtn) {
+            quickSaveBtn.onclick = async () => {
+                const newName = prompt("Enter a name for this contact:");
+                if (!newName || !newName.trim()) return;
+                try {
+                    const contactRef = firestoreTools.doc(db, "users", authState.user.uid, "contacts", contactEmail);
+                    await firestoreTools.setDoc(contactRef, {
+                        email: contactEmail,
+                        name: newName.trim(),
+                        phone: ''
+                    });
+                    document.getElementById('save-unknown-contact-banner').style.display = 'none';
+                    document.querySelector('.chat-header-text h2').textContent = newName.trim();
+                } catch(e) {
+                    alert("Failed to save contact.");
+                }
+            };
         }
 
         const inputEl = document.getElementById('chat-input');
@@ -492,13 +547,13 @@ export const UI = {
                     mediaRecorder.addEventListener('dataavailable', event => audioChunks.push(event.data));
                     
                     mediaRecorder.addEventListener('stop', async () => {
-                        const localType = audioChunks[0]?.type || 'audio/mp4';
-                        const audioBlob = new Blob(audioChunks, { type: localType }); // Safely binds OS fallback natively to prevent strict Firebase storage parsing crashes
+                        const localType = mediaRecorder.mimeType || 'audio/webm';
+                        const audioBlob = new Blob(audioChunks, { type: localType }); 
                         const { storage, storageTools } = await import('./firebase-init.js');
                         const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote`);
                         
                         try {
-                            await storageTools.uploadBytes(mediaRef, audioBlob);
+                            await storageTools.uploadBytes(mediaRef, audioBlob, { contentType: localType });
                             const mediaUrl = await storageTools.getDownloadURL(mediaRef);
                             await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
                                 sender: authState.user.email.trim().toLowerCase(),

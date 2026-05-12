@@ -70,8 +70,7 @@
                 </div>
                 <div class="filter-chips">
                     <span class="chip active">All</span>
-                    <span class="chip">Unread</span>
-                    <span class="chip">Groups</span>
+                    <span class="chip">Calls History</span>
                 </div>
             </div>
 
@@ -87,7 +86,7 @@
                         <h2 style="font-weight: 500; font-size: 18px; margin-left: 12px;">New Chat</h2>
                     </div>
                 </header>
-                <div style="padding: 16px;">
+                <div style="padding: 16px; overflow-y: auto; flex-shrink: 0;">
                     <div style="display: flex; align-items: center; cursor: pointer; color: var(--primary-green); padding: 12px;" onclick="document.getElementById('new-contact-form').classList.toggle('hidden')">
                         <div class="avatar-text" style="background: var(--primary-green); color: white; margin-right: 16px; width: 44px; height: 44px; font-size: 24px;"><i class="ri-user-add-fill"></i></div>
                         <span style="font-size: 16px; font-weight: 500;">New contact</span>
@@ -158,6 +157,13 @@
                                 <span style="font-size: 16px;">Dark Mode</span>
                             </div>
                             <i class="ri-toggle-fill" style="font-size: 32px; color: var(--primary-green);" id="theme-toggle-icon"></i>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 0;" id="notify-toggle-btn">
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <i class="ri-notification-3-fill" style="font-size: 20px; color: var(--text-secondary);"></i>
+                                <span style="font-size: 16px;">Push Notifications</span>
+                            </div>
+                            <i class="ri-toggle-line" style="font-size: 32px; color: var(--text-secondary);" id="notify-toggle-icon"></i>
                         </div>
                     </div>
                     

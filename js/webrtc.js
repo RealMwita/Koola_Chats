@@ -24,8 +24,12 @@ class WebRTCManager {
     async getMedia(videoEnabled) {
         try {
             return await navigator.mediaDevices.getUserMedia({ 
-                video: videoEnabled, 
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                video: videoEnabled ? { 
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 24, max: 30 }
+                } : false, 
+                audio: true 
             });
         } catch(err) {
             alert(`Microphone/Camera permission denied. Details: ${err.message}`);
@@ -50,9 +54,7 @@ class WebRTCManager {
                             if (!this.pc) {
                                 this.showIncomingCallRing(chat.id, callId, data);
                                 if (window.Notification && Notification.permission === 'granted') {
-                                    if (document.hidden) {
-                                        new Notification("Incoming Call", { body: `Incoming ${data.type} call from ${data.caller.split('@')[0]}` });
-                                    }
+                                    new Notification("Incoming Call", { body: `Incoming ${data.type} call from ${data.caller.split('@')[0]}` });
                                 }
                             }
                         }
@@ -275,7 +277,7 @@ class WebRTCManager {
         ui.innerHTML = `
             <div style="flex-grow:1; width: 100%; height: 100%; position: relative; background: #000;">
                 <video id="remote-video-stream" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-                <video id="local-video-stream" autoplay muted playsinline style="width: 15vw; height: 20vh; position: absolute; bottom: 120px; right: 20px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></video>
+                <video id="local-video-stream" autoplay muted playsinline style="width: 120px; height: 160px; position: absolute; bottom: 120px; right: 20px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10; border: 2px solid rgba(255,255,255,0.2);"></video>
                 
                 <div style="position: absolute; top: 40px; width: 100%; text-align: center; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
                     <h2 style="font-weight: 500;">${name}</h2>
