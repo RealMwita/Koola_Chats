@@ -534,6 +534,10 @@ export const UI = {
 
             // Voice Note Handlers
             if (!isRecording) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("Camera/Microphone access blocked. You must use HTTPS or localhost to record audio.");
+                    return;
+                }
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
