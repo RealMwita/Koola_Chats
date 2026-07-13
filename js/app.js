@@ -1,28 +1,107 @@
 import { db, firestoreTools } from './firebase-init.js';
-import { loginOrRegister, logout, onAuthChange, authState } from './auth.js';
+import { loginUser, registerUser, logout, onAuthChange, authState } from './auth.js';
 import { UI } from './ui.js';
-// WebRTC will be imported within UI or globally.
 import './webrtc.js';
 
 document.addEventListener("DOMContentLoaded", () => {
     
     // 1. Initial Splash Screen Teardown
     setTimeout(() => {
-        document.getElementById('splash-screen').classList.add('hidden');
+        document.getElementById('splash-screen')?.classList.add('hidden');
     }, 1500);
 
     // 2. Initialize UI Hooks
     UI.init();
 
-    // 3. Bind Auth Modal Login Button
-    const authSubmit = document.getElementById('auth-submit-btn');
-    if (authSubmit) {
-        authSubmit.addEventListener('click', () => {
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-password').value;
-            loginOrRegister(email, pass);
+    // 3. Bind Professional Auth Modal Controls
+    const tabSignin = document.getElementById('tab-signin-btn');
+    const tabRegister = document.getElementById('tab-register-btn');
+    const signinForm = document.getElementById('signin-form');
+    const registerForm = document.getElementById('register-form');
+    const authErrorBanner = document.getElementById('auth-error-banner');
+
+    if (tabSignin && tabRegister) {
+        tabSignin.addEventListener('click', () => {
+            tabSignin.classList.add('active');
+            tabRegister.classList.remove('active');
+            signinForm?.classList.remove('hidden');
+            registerForm?.classList.add('hidden');
+            if (authErrorBanner) authErrorBanner.classList.add('hidden');
+        });
+
+        tabRegister.addEventListener('click', () => {
+            tabRegister.classList.add('active');
+            tabSignin.classList.remove('active');
+            registerForm?.classList.remove('hidden');
+            signinForm?.classList.add('hidden');
+            if (authErrorBanner) authErrorBanner.classList.add('hidden');
         });
     }
+
+    // Password Eye Toggles
+    const toggleSigninPass = document.getElementById('toggle-signin-pass');
+    const signinPassInput = document.getElementById('signin-password');
+    if (toggleSigninPass && signinPassInput) {
+        toggleSigninPass.addEventListener('click', () => {
+            const isPass = signinPassInput.type === 'password';
+            signinPassInput.type = isPass ? 'text' : 'password';
+            toggleSigninPass.innerHTML = isPass ? '<i class="ri-eye-off-line"></i>' : '<i class="ri-eye-line"></i>';
+        });
+    }
+
+    const toggleRegPass = document.getElementById('toggle-reg-pass');
+    const regPassInput = document.getElementById('reg-password');
+    if (toggleRegPass && regPassInput) {
+        toggleRegPass.addEventListener('click', () => {
+            const isPass = regPassInput.type === 'password';
+            regPassInput.type = isPass ? 'text' : 'password';
+            toggleRegPass.innerHTML = isPass ? '<i class="ri-eye-off-line"></i>' : '<i class="ri-eye-line"></i>';
+        });
+    }
+
+    // Sign In Submit & Enter Key
+    const signinSubmitBtn = document.getElementById('signin-submit-btn');
+    const executeSignin = () => {
+        const email = document.getElementById('signin-email')?.value;
+        const pass = document.getElementById('signin-password')?.value;
+        const remember = document.getElementById('signin-remember')?.checked;
+        loginUser(email, pass, remember);
+    };
+    if (signinSubmitBtn) signinSubmitBtn.addEventListener('click', executeSignin);
+    document.getElementById('signin-password')?.addEventListener('keydown', e => { if (e.key === 'Enter') executeSignin(); });
+
+    // Register Submit & Enter Key
+    const regSubmitBtn = document.getElementById('register-submit-btn');
+    const executeRegister = () => {
+        const name = document.getElementById('reg-name')?.value;
+        const email = document.getElementById('reg-email')?.value;
+        const pass = document.getElementById('reg-password')?.value;
+        const confirmPass = document.getElementById('reg-confirm-password')?.value;
+
+        if (pass !== confirmPass) {
+            const textEl = document.getElementById('auth-error-text');
+            if (authErrorBanner && textEl) {
+                textEl.textContent = "Passwords do not match. Please check and try again.";
+                authErrorBanner.classList.remove('hidden');
+            } else {
+                alert("Passwords do not match.");
+            }
+            return;
+        }
+        registerUser(name, email, pass);
+    };
+    if (regSubmitBtn) regSubmitBtn.addEventListener('click', executeRegister);
+    document.getElementById('reg-confirm-password')?.addEventListener('keydown', e => { if (e.key === 'Enter') executeRegister(); });
+
+    // Forgot password handler
+    document.getElementById('forgot-pass-link')?.addEventListener('click', () => {
+        const email = document.getElementById('signin-email')?.value.trim();
+        if (!email) {
+            alert("Please enter your email address in the box above first to reset your password.");
+        } else {
+            alert(`A password reset link would be sent to ${email}. Check your inbox!`);
+        }
+    });
     
     // 4. Bind Sidebar Settings and Logout
     const profileBtn = document.getElementById('profile-btn');

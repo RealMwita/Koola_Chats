@@ -20,17 +20,134 @@
 
     <!-- Auth / Onboarding Overlay -->
     <div id="auth-overlay" class="full-overlay hidden">
-        <div class="auth-modal">
-            <h2>Welcome to Koola</h2>
-            <p>Sign in with your email to start messaging.</p>
-            <div class="auth-form" id="login-form">
-                <input type="email" id="auth-email" placeholder="Email Address">
-                <input type="password" id="auth-password" placeholder="Password">
-                <button id="auth-submit-btn" class="primary-btn">Sign In / Register</button>
+        <div class="auth-split-card">
+            <!-- Left Branding Side -->
+            <div class="auth-brand-left">
+                <div class="auth-brand-logo">
+                    <i class="ri-message-3-fill pulse"></i>
+                    <span>Koola Web</span>
+                </div>
+                <h2>Connect across every device without keeping your phone online.</h2>
+                <p>Experience real-time end-to-end encrypted messaging, crystal clear HD audio/video calls, and lightning fast cloud sync.</p>
+                <div class="auth-features-list">
+                    <div class="auth-feature-item">
+                        <i class="ri-shield-keyhole-fill"></i>
+                        <div>
+                            <strong>End-to-End Encryption</strong>
+                            <span>Your conversations remain private and secured</span>
+                        </div>
+                    </div>
+                    <div class="auth-feature-item">
+                        <i class="ri-video-chat-fill"></i>
+                        <div>
+                            <strong>HD Video & Voice Calls</strong>
+                            <span>Connect effortlessly across desktop and mobile</span>
+                        </div>
+                    </div>
+                    <div class="auth-feature-item">
+                        <i class="ri-cloud-line"></i>
+                        <div>
+                            <strong>Instant Cloud Sync</strong>
+                            <span>Access all your chats anywhere without interruptions</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="auth-loader" class="hidden">
-                <i class="ri-loader-4-line pulse" style="font-size: 32px;"></i>
-                <p>Authenticating...</p>
+
+            <!-- Right Form Side -->
+            <div class="auth-form-right">
+                <!-- Tab Controls -->
+                <div class="auth-tabs">
+                    <button id="tab-signin-btn" class="auth-tab active">Sign In</button>
+                    <button id="tab-register-btn" class="auth-tab">Create Account</button>
+                </div>
+
+                <!-- Error Notification Banner -->
+                <div id="auth-error-banner" class="auth-error-banner hidden">
+                    <i class="ri-error-warning-fill"></i>
+                    <span id="auth-error-text">Error message</span>
+                </div>
+
+                <!-- Sign In Form -->
+                <div id="signin-form" class="auth-form-body">
+                    <h3>Welcome back</h3>
+                    <p class="auth-subtext">Enter your credentials to access your chats</p>
+
+                    <div class="auth-input-group">
+                        <label>Email Address</label>
+                        <div class="auth-input-box">
+                            <i class="ri-mail-line"></i>
+                            <input type="email" id="signin-email" placeholder="name@example.com" autocomplete="email">
+                        </div>
+                    </div>
+
+                    <div class="auth-input-group">
+                        <label>Password</label>
+                        <div class="auth-input-box">
+                            <i class="ri-lock-2-line"></i>
+                            <input type="password" id="signin-password" placeholder="••••••••" autocomplete="current-password">
+                            <button type="button" class="eye-toggle-btn" id="toggle-signin-pass"><i class="ri-eye-line"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="auth-extra-row">
+                        <label class="remember-label">
+                            <input type="checkbox" id="signin-remember" checked>
+                            <span>Remember this device</span>
+                        </label>
+                        <a href="javascript:void(0);" id="forgot-pass-link" class="forgot-link">Forgot password?</a>
+                    </div>
+
+                    <button id="signin-submit-btn" class="primary-btn auth-main-btn">Sign In</button>
+                </div>
+
+                <!-- Register Form -->
+                <div id="register-form" class="auth-form-body hidden">
+                    <h3>Get started with Koola</h3>
+                    <p class="auth-subtext">Create your free account in under a minute</p>
+
+                    <div class="auth-input-group">
+                        <label>Full Name</label>
+                        <div class="auth-input-box">
+                            <i class="ri-user-line"></i>
+                            <input type="text" id="reg-name" placeholder="John Doe" autocomplete="name">
+                        </div>
+                    </div>
+
+                    <div class="auth-input-group">
+                        <label>Email Address</label>
+                        <div class="auth-input-box">
+                            <i class="ri-mail-line"></i>
+                            <input type="email" id="reg-email" placeholder="name@example.com" autocomplete="email">
+                        </div>
+                    </div>
+
+                    <div class="auth-input-group">
+                        <label>Create Password</label>
+                        <div class="auth-input-box">
+                            <i class="ri-lock-2-line"></i>
+                            <input type="password" id="reg-password" placeholder="Min. 6 characters" autocomplete="new-password">
+                            <button type="button" class="eye-toggle-btn" id="toggle-reg-pass"><i class="ri-eye-line"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="auth-input-group">
+                        <label>Confirm Password</label>
+                        <div class="auth-input-box">
+                            <i class="ri-lock-password-line"></i>
+                            <input type="password" id="reg-confirm-password" placeholder="Re-enter password" autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <button id="register-submit-btn" class="primary-btn auth-main-btn">Create Account</button>
+                </div>
+
+                <!-- Auth Loader -->
+                <div id="auth-loader" class="auth-loader-body hidden">
+                    <i class="ri-loader-4-line pulse spinner-icon"></i>
+                    <h4>Securing your session...</h4>
+                    <p>Connecting to Koola cloud servers</p>
+                </div>
             </div>
         </div>
     </div>

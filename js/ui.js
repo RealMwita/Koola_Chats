@@ -320,7 +320,6 @@ export const UI = {
                 lastMessage: "Chat created"
             }, { merge: true });
             
-            document.getElementById('contacts-pane').classList.add('hidden');
             this.openChat(chatId, targetName, targetEmail);
         } catch(e) {
             alert("Error creating chat: " + e.message);
@@ -359,12 +358,34 @@ export const UI = {
     openChat(chatId, contactName, contactEmail) {
         this.activeChatId = chatId;
         
-        // Mobile handling (slide in)
+        // Universal Clickable Chat Behavior: Close all subpanes and overlays immediately
+        document.getElementById('contacts-pane')?.classList.add('hidden');
+        document.getElementById('subpage-container')?.classList.add('hidden');
+        document.getElementById('new-contact-form')?.classList.add('hidden');
+
+        // Automatically switch Left Nav Tab to "Chats" if opened from Calls History or Status
+        const activeTabBtn = document.querySelector('.nav-icon.active');
+        if (activeTabBtn && activeTabBtn.getAttribute('data-tab') !== 'chats') {
+            document.querySelectorAll('.nav-icon[data-tab]').forEach(btn => btn.classList.remove('active'));
+            const chatsTab = document.querySelector('.nav-icon[data-tab="chats"]');
+            if (chatsTab) {
+                chatsTab.classList.add('active');
+                const paneTitle = document.getElementById('pane-title');
+                const searchContainer = document.querySelector('.search-container');
+                const newChatBtn = document.getElementById('new-chat-btn');
+                if (paneTitle) paneTitle.textContent = "Chats";
+                if (searchContainer) searchContainer.style.display = 'block';
+                if (newChatBtn) newChatBtn.style.display = 'block';
+                if (window.koolaDocsArr) this.renderChatList(window.koolaDocsArr);
+            }
+        }
+
+        // Mobile handling (slide in active chat)
         if(window.innerWidth <= 768) {
             this.els.chatPane.classList.add('active');
         }
 
-        // Switch purely to Messaging Container
+        // Switch to Messaging Container
         this.els.emptyStateView.classList.add('hidden');
         this.els.messagingContainer.classList.remove('hidden');
 
@@ -394,18 +415,27 @@ export const UI = {
             <div id="messages-scroll" class="messages-scroll">
                 <div style="text-align:center; padding-top:20px;"><i class="ri-loader-4-line pulse"></i></div>
             </div>
+            <div id="voice-recording-indicator" class="voice-recording-banner hidden" style="background: var(--sidebar-bg); border-top: 1px solid var(--border-color); padding: 8px 16px;">
+                <div class="voice-recording-dot"></div>
+                <span id="recording-status-text">Recording voice message... (Click red stop button to send)</span>
+            </div>
             <div class="chat-input-area" style="position:relative;">
-                <button class="icon-btn" id="emoji-btn"><i class="ri-emotion-line"></i></button>
+                <button class="icon-btn" id="emoji-btn" title="Choose Emoji"><i class="ri-emotion-line"></i></button>
                 <div id="emoji-container" class="hidden" style="position: absolute; bottom: 80px; left: 16px; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius:12px; overflow:hidden;"></div>
                 
-                <button class="icon-btn" style="position:relative; overflow:hidden;">
+                <button class="icon-btn" style="position:relative; overflow:hidden;" title="Send Photo or Image">
+                    <i class="ri-image-2-line" style="color: var(--primary-green);"></i>
+                    <input type="file" id="image-upload-input" accept="image/*" style="opacity:0; position:absolute; left:0; top:0; width:100%; height:100%; cursor:pointer;">
+                </button>
+
+                <button class="icon-btn" style="position:relative; overflow:hidden;" title="Attach video, audio or files">
                     <i class="ri-attachment-2"></i>
-                    <input type="file" id="media-upload-input" accept="image/*,video/*" style="opacity:0; position:absolute; left:0; top:0; width:100%; height:100%; cursor:pointer;">
+                    <input type="file" id="media-upload-input" accept="video/*,audio/*,image/*" style="opacity:0; position:absolute; left:0; top:0; width:100%; height:100%; cursor:pointer;">
                 </button>
                 <div class="chat-input-wrapper">
                     <input type="text" id="chat-input" placeholder="Type a message or record audio...">
                 </div>
-                <button class="icon-btn" id="send-voice-btn"><i class="ri-mic-fill" id="send-icon"></i></button>
+                <button class="icon-btn" id="send-voice-btn" title="Hold/Click to record voice message"><i class="ri-mic-fill" id="send-icon"></i></button>
             </div>
         `;
 
@@ -424,7 +454,7 @@ export const UI = {
             });
 
         if(window.innerWidth <= 768) {
-            document.getElementById('mobile-back-btn').style.display = 'block';
+            document.getElementById('mobile-back-btn')?.style.setProperty('display', 'block');
         }
 
         const quickSaveBtn = document.getElementById('quick-save-contact-btn');
@@ -455,13 +485,16 @@ export const UI = {
         inputEl.addEventListener('input', () => {
             if(inputEl.value.trim().length > 0) {
                 iconEl.className = 'ri-send-plane-fill';
-            } else {
+                iconEl.style.color = '';
+            } else if (!isRecording) {
                 iconEl.className = 'ri-mic-fill';
+                iconEl.style.color = '';
             }
         });
 
-        // Emoji Integration
-        document.getElementById('emoji-btn').addEventListener('click', () => {
+        // Emoji Integration & Outside Click Dismissal
+        document.getElementById('emoji-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
             const container = document.getElementById('emoji-container');
             if(!document.querySelector('emoji-picker')) {
                 import('https://cdn.jsdelivr.net/npm/emoji-picker-element@1.21.3/index.js').then(() => {
@@ -476,16 +509,36 @@ export const UI = {
             container.classList.toggle('hidden');
         });
 
-        // Media Upload Logic
-        document.getElementById('media-upload-input').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
+        const closeEmojiHandler = (e) => {
+            const container = document.getElementById('emoji-container');
+            const btn = document.getElementById('emoji-btn');
+            if (container && !container.classList.contains('hidden')) {
+                if (!container.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                    container.classList.add('hidden');
+                }
+            }
+        };
+        document.removeEventListener('click', window.koolaEmojiOutside);
+        document.removeEventListener('touchstart', window.koolaEmojiOutside);
+        window.koolaEmojiOutside = closeEmojiHandler;
+        document.addEventListener('click', window.koolaEmojiOutside);
+        document.addEventListener('touchstart', window.koolaEmojiOutside);
+
+        // Helper function for uploading media files
+        const handleFileUpload = async (file, overrideType = null) => {
             if(!file) return;
-            if(file.size > 5000000) return alert("File exceeds 5MB limit. Please choose a smaller file.");
+            if(file.size > 15000000) return alert("File exceeds 15MB limit. Please choose a smaller file.");
             
-            const mediaType = file.type.startsWith('video') ? 'video' : 'image';
+            let mediaType = overrideType || 'image';
+            if (!overrideType) {
+                if (file.type.startsWith('video')) mediaType = 'video';
+                else if (file.type.startsWith('audio')) mediaType = 'audio';
+                else if (file.type.startsWith('image')) mediaType = 'image';
+            }
+
             alert(`Uploading ${mediaType}... please wait.`);
             const { storage, storageTools } = await import('./firebase-init.js');
-            const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_${file.name}`);
+            const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_${file.name || 'uploaded_media'}`);
             
             try {
                 await storageTools.uploadBytes(mediaRef, file);
@@ -498,11 +551,45 @@ export const UI = {
                     status: 'sent',
                     timestamp: firestoreTools.serverTimestamp()
                 });
+                const label = mediaType === 'image' ? '[Photo 📷]' : (mediaType === 'video' ? '[Video 🎥]' : '[Audio 🎵]');
+                await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
+                    lastMessage: label,
+                    timestamp: firestoreTools.serverTimestamp()
+                }, { merge: true });
                 document.getElementById('audio-send')?.play().catch(()=>{});
             } catch (err) {
-                alert("Upload failed. Make sure Firebase Storage rules are public or authorized.");
+                alert("Upload failed. Make sure Firebase Storage rules allow media uploads.");
+            }
+        };
+
+        // Dedicated Image Upload Listener
+        document.getElementById('image-upload-input')?.addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'image'));
+        // General Media Upload Listener
+        document.getElementById('media-upload-input')?.addEventListener('change', (e) => handleFileUpload(e.target.files[0]));
+
+        // Clipboard Image Paste Support
+        inputEl.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let index in items) {
+                const item = items[index];
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const blob = item.getAsFile();
+                    handleFileUpload(blob, 'image');
+                }
             }
         });
+
+        // Drag & Drop Image/Media Support onto Messages Wall
+        const scrollArea = document.getElementById('messages-scroll');
+        if (scrollArea) {
+            scrollArea.addEventListener('dragover', (e) => e.preventDefault());
+            scrollArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFileUpload(e.dataTransfer.files[0]);
+                }
+            });
+        }
 
         let mediaRecorder;
         let audioChunks = [];
@@ -513,7 +600,7 @@ export const UI = {
             if (text) {
                 inputEl.value = '';
                 inputEl.dispatchEvent(new Event('input')); // Reset mic icon
-                document.getElementById('emoji-container').classList.add('hidden');
+                document.getElementById('emoji-container')?.classList.add('hidden');
                 try {
                     await firestoreTools.addDoc(firestoreTools.collection(db, "chats", chatId, "messages"), {
                         sender: authState.user.email.trim().toLowerCase(),
@@ -527,15 +614,18 @@ export const UI = {
                     }, { merge: true });
                     document.getElementById('audio-send')?.play().catch(()=>{});
                 } catch (err) {
-                    alert("Message failed!");
+                    alert("Message failed to send!");
                 }
                 return;
             }
 
-            // Voice Note Handlers
+            // Voice Note Live Recording Handler
             if (!isRecording) {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    alert("Camera/Microphone access blocked. You must use HTTPS or localhost to record audio.");
+                    const pickFile = confirm("Microphone direct recording is restricted when opening via local file:/// protocol or non-HTTPS. Would you like to select/attach a voice note or audio file from your device instead?");
+                    if (pickFile) {
+                        document.getElementById('media-upload-input')?.click();
+                    }
                     return;
                 }
                 try {
@@ -544,8 +634,9 @@ export const UI = {
                     mediaRecorder.start();
                     isRecording = true;
                     
-                    iconEl.className = 'ri-stop-circle-line pulse';
+                    iconEl.className = 'ri-stop-circle-fill pulse';
                     iconEl.style.color = 'var(--danger-red)';
+                    document.getElementById('voice-recording-indicator')?.classList.remove('hidden');
                     audioChunks = [];
                     
                     mediaRecorder.addEventListener('dataavailable', event => audioChunks.push(event.data));
@@ -554,7 +645,7 @@ export const UI = {
                         const localType = mediaRecorder.mimeType || 'audio/webm';
                         const audioBlob = new Blob(audioChunks, { type: localType }); 
                         const { storage, storageTools } = await import('./firebase-init.js');
-                        const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote`);
+                        const mediaRef = storageTools.ref(storage, `chats/${chatId}/media/${Date.now()}_voicenote.webm`);
                         
                         try {
                             await storageTools.uploadBytes(mediaRef, audioBlob, { contentType: localType });
@@ -566,19 +657,27 @@ export const UI = {
                                 status: 'sent',
                                 timestamp: firestoreTools.serverTimestamp()
                             });
+                            await firestoreTools.setDoc(firestoreTools.doc(db, "chats", chatId), {
+                                lastMessage: "[Voice Message 🎤]",
+                                timestamp: firestoreTools.serverTimestamp()
+                            }, { merge: true });
                             document.getElementById('audio-send')?.play().catch(()=>{});
                         } catch(err) {
                             alert("Voice Note upload failed: " + err.message);
                         }
-                        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                        stream.getTracks().forEach(t => t.stop());
                     });
                 } catch(e) {
-                    alert("Microphone permission denied.");
+                    const pickFile = confirm("Microphone permission was denied or unavailable. Would you like to attach an audio recording file instead?");
+                    if (pickFile) {
+                        document.getElementById('media-upload-input')?.click();
+                    }
                 }
             } else {
                 isRecording = false;
                 iconEl.className = 'ri-mic-fill';
                 iconEl.style.color = '';
+                document.getElementById('voice-recording-indicator')?.classList.add('hidden');
                 mediaRecorder.stop();
             }
         };
@@ -629,9 +728,9 @@ export const UI = {
                     
                     let contentHtml = msg.text ? `<div class="message-text">${msg.text}</div>` : '';
                     if(msg.mediaUrl) {
-                        if(msg.mediaType === 'image') contentHtml += `<img src="${msg.mediaUrl}" style="max-width:100%; border-radius:8px; margin-top:4px;">`;
+                        if(msg.mediaType === 'image') contentHtml += `<div style="margin-top:4px;"><img src="${msg.mediaUrl}" onclick="window.open('${msg.mediaUrl}', '_blank')" style="max-width:100%; max-height:300px; border-radius:8px; cursor:pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); display:block; object-fit:cover;" title="Click to open full size photo"></div>`;
                         if(msg.mediaType === 'video') contentHtml += `<video controls src="${msg.mediaUrl}" style="max-width:100%; border-radius:8px; margin-top:4px; max-height:250px;"></video>`;
-                        if(msg.mediaType === 'audio') contentHtml += `<audio controls src="${msg.mediaUrl}" style="max-width:250px; margin-top:4px;"></audio>`;
+                        if(msg.mediaType === 'audio') contentHtml += `<div style="display:flex; align-items:center; gap:8px; margin-top:4px; padding:4px 0;"><i class="ri-mic-fill" style="font-size:20px; color:var(--primary-green);"></i><audio controls preload="metadata" src="${msg.mediaUrl}" style="max-width:240px; height:36px;"></audio></div>`;
                     }
 
                     let tickSvg = '';
