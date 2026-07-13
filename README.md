@@ -15,8 +15,7 @@
 
 You can access and test **Koola Chats** instantly from any desktop or mobile web browser via our official live cloud deployment:
 
-* **Official Web App Link**: [https://koola-chats.web.app](https://koola-chats.web.app)
-* **Alternative Mirror Link**: [https://koola-chats.firebaseapp.com](https://koola-chats.firebaseapp.com)
+* **Official Web App Link**: [https://koola-chats.web.app](https://koolachats.netlify.app)
 
 > [!TIP]
 > **Mobile & Desktop Sync**: Open the live link on both your laptop and smartphone. Sign in to your account to experience real-time message syncing, instant voice notes, and HD video/audio calls across devices!
